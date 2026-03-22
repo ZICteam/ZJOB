@@ -8,7 +8,7 @@
 
 ## Server Installation
 
-1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.8.jar`.
+1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.14.jar`.
 2. Put the jar into the server `mods` folder.
 3. Start the server once.
 4. Stop the server.
@@ -91,7 +91,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 Artifact:
 
 ```text
-build/libs/advancedjobs-1.0.8.jar
+build/libs/advancedjobs-1.0.14.jar
 ```
 
 Optional integrations are discovered automatically during build if their jars are found in:

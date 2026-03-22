@@ -48,7 +48,7 @@
 
 ## Quick Start
 
-1. Build the mod or take `build/libs/advancedjobs-1.0.8.jar`.
+1. Build the mod or take `build/libs/advancedjobs-1.0.14.jar`.
 2. Put the jar into the server `mods` directory.
 3. Start the server once so configs are generated.
 4. Review `config/ZAdvancedJobs/`.
@@ -87,7 +87,7 @@ Optional client integrations:
 Output:
 
 ```text
-build/libs/advancedjobs-1.0.8.jar
+build/libs/advancedjobs-1.0.14.jar
 ```
 
 ## Generated Config Files
@@ -145,6 +145,9 @@ Full reference:
 - [docs/COMMANDS.md](docs/COMMANDS.md)
 - [docs/INTEGRATION_ZECONOMY.md](docs/INTEGRATION_ZECONOMY.md)
 - [docs/UI.md](docs/UI.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [docs/TESTING_CHECKLIST.md](docs/TESTING_CHECKLIST.md)
+- [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
 - [UI_STYLE_NOTES.md](UI_STYLE_NOTES.md)
 - [VANILLA_UI_TEXTURES.md](VANILLA_UI_TEXTURES.md)
 - [CHANGELOG.md](CHANGELOG.md)

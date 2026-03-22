@@ -143,6 +143,13 @@ These control repetitive farm protection and low-value exploit loops.
 4. Configure `economy.json` after deciding between internal or external provider.
 5. Only then customize skins and labels.
 
+## Validation And Fallbacks
+
+- generated defaults are intended to be the starting point for manual edits
+- malformed JSON or missing required fields now produce clearer log errors with the failing field path
+- invalid business values such as duplicate ids, broken references, or impossible goals are rejected during config load
+- when a file cannot be loaded, the mod falls back to safe defaults or empty runtime data depending on the config type
+
 ## External Economy Example
 
 ```json

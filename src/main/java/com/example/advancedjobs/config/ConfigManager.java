@@ -34,6 +34,24 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.loading.FMLPaths;
 
+import static com.example.advancedjobs.config.ConfigValidationService.optionalDouble;
+import static com.example.advancedjobs.config.ConfigValidationService.optionalInt;
+import static com.example.advancedjobs.config.ConfigValidationService.optionalString;
+import static com.example.advancedjobs.config.ConfigValidationService.requireArray;
+import static com.example.advancedjobs.config.ConfigValidationService.requireDouble;
+import static com.example.advancedjobs.config.ConfigValidationService.requireEnum;
+import static com.example.advancedjobs.config.ConfigValidationService.requireInt;
+import static com.example.advancedjobs.config.ConfigValidationService.requireObject;
+import static com.example.advancedjobs.config.ConfigValidationService.requireObjectElement;
+import static com.example.advancedjobs.config.ConfigValidationService.requireResourceLocation;
+import static com.example.advancedjobs.config.ConfigValidationService.requireRootObject;
+import static com.example.advancedjobs.config.ConfigValidationService.requireString;
+import static com.example.advancedjobs.config.ConfigValidationService.validateCrossConfigReferences;
+import static com.example.advancedjobs.config.ConfigValidationService.validatePositiveDouble;
+import static com.example.advancedjobs.config.ConfigValidationService.validatePositiveInt;
+import static com.example.advancedjobs.config.ConfigValidationService.validateUniqueId;
+import static com.example.advancedjobs.config.ConfigValidationService.validateMultiplierMap;
+
 public final class ConfigManager {
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final CommonConfig COMMON;
@@ -82,6 +100,7 @@ public final class ConfigManager {
         economyConfig = EconomyJsonConfig.load(root.resolve("economy.json"));
         npcSkinsConfig = NpcSkinsConfig.load(root.resolve("npc_skins.json"), root.resolve("npc_skins"));
         npcLabelsConfig = NpcLabelsConfig.load(root.resolve("npc_labels.json"));
+        validateCrossConfigReferences(jobsConfig.definitions(), dailyConfig.allTasks(), contractsConfig.allContracts());
         writeCommonJson(root.resolve("common.json"));
         writeClientJson(root.resolve("client.json"));
     }
@@ -241,6 +260,11 @@ public final class ConfigManager {
         }
     }
 
+    private static void logConfigFallback(Path path, String configName, String fallbackDescription, Exception e) {
+        AdvancedJobsMod.LOGGER.error("Failed to load {} from {}. Falling back to {}.", configName, path, fallbackDescription, e);
+    }
+
+
     public static final class NpcLabelsConfig {
         private final Map<String, String> labels;
         private final Path configPath;
@@ -262,7 +286,7 @@ public final class ConfigManager {
                 }
                 return new NpcLabelsConfig(map, path);
             } catch (Exception e) {
-                AdvancedJobsMod.LOGGER.error("Failed to load npc labels config, using defaults", e);
+                logConfigFallback(path, "npc labels config", "default labels", e);
                 return new NpcLabelsConfig(new LinkedHashMap<>(defaultLabels()), path);
             }
         }
@@ -351,7 +375,7 @@ public final class ConfigManager {
                 }
                 return new NpcSkinsConfig(map, path, skinsDirectory);
             } catch (Exception e) {
-                AdvancedJobsMod.LOGGER.error("Failed to load npc skins config, using defaults", e);
+                logConfigFallback(path, "npc skins config", "default NPC skin profiles", e);
                 JsonObject root = defaultProfiles();
                 Map<String, JsonObject> map = new LinkedHashMap<>();
                 for (var entry : root.entrySet()) {
@@ -550,7 +574,7 @@ public final class ConfigManager {
                 JsonObject root = GSON.fromJson(reader, JsonObject.class);
                 return new JobsConfigLoader(parseDefinitions(root));
             } catch (Exception e) {
-                AdvancedJobsMod.LOGGER.error("Failed to load jobs config, using defaults", e);
+                logConfigFallback(path, "jobs config", "default job definitions", e);
                 return new JobsConfigLoader(defaultDefinitions());
             }
         }
@@ -560,30 +584,46 @@ public final class ConfigManager {
         }
 
         private static Map<String, JobDefinition> parseDefinitions(JsonObject root) {
+            JsonObject validatedRoot = requireRootObject(root, "jobs");
             Map<String, JobDefinition> map = new LinkedHashMap<>();
-            JsonArray jobs = root.getAsJsonArray("jobs");
-            for (JsonElement element : jobs) {
-                JsonObject obj = element.getAsJsonObject();
-                String id = obj.get("id").getAsString();
+            java.util.Set<String> jobIds = new java.util.HashSet<>();
+            JsonArray jobs = requireArray(validatedRoot, "jobs", "jobs");
+            for (int i = 0; i < jobs.size(); i++) {
+                String jobPath = "jobs.jobs[" + i + "]";
+                JsonObject obj = requireObjectElement(jobs.get(i), jobPath);
+                String id = requireString(obj, "id", jobPath);
+                validateUniqueId(jobIds, id, jobPath + ".id");
                 List<ActionRewardEntry> rewards = new ArrayList<>();
-                for (JsonElement rewardElement : obj.getAsJsonArray("rewards")) {
-                    JsonObject reward = rewardElement.getAsJsonObject();
+                java.util.Set<String> rewardKeys = new java.util.HashSet<>();
+                JsonArray rewardArray = requireArray(obj, "rewards", jobPath);
+                for (int j = 0; j < rewardArray.size(); j++) {
+                    String rewardPath = jobPath + ".rewards[" + j + "]";
+                    JsonObject reward = requireObjectElement(rewardArray.get(j), rewardPath);
+                    JobActionType rewardType = requireEnum(JobActionType.class, reward, "type", rewardPath);
+                    ResourceLocation rewardTarget = requireResourceLocation(reward, "target", rewardPath);
+                    double salary = requireDouble(reward, "salary", rewardPath);
+                    double xp = requireDouble(reward, "xp", rewardPath);
+                    validatePositiveDouble(rewardPath + ".salary", salary, true);
+                    validatePositiveDouble(rewardPath + ".xp", xp, true);
+                    validateUniqueId(rewardKeys, rewardType.name() + "|" + rewardTarget, rewardPath);
                     rewards.add(new ActionRewardEntry(
-                        JobActionType.valueOf(reward.get("type").getAsString()),
-                        ResourceLocationUtil.parse(reward.get("target").getAsString()),
-                        new RewardDefinition(reward.get("salary").getAsDouble(), reward.get("xp").getAsDouble(), 0.0D, 0.0D)
+                        rewardType,
+                        rewardTarget,
+                        new RewardDefinition(salary, xp, 0.0D, 0.0D)
                     ));
                 }
+                int maxLevel = optionalInt(obj, "maxLevel", jobPath, 100);
+                validatePositiveInt(jobPath + ".maxLevel", maxLevel, false);
                 map.put(id, new JobDefinition(
                     id,
-                    obj.get("category").getAsString(),
-                    obj.get("icon").getAsString(),
-                    obj.get("translationKey").getAsString(),
-                    obj.get("descriptionKey").getAsString(),
-                    obj.has("maxLevel") ? obj.get("maxLevel").getAsInt() : 100,
+                    requireString(obj, "category", jobPath),
+                    requireString(obj, "icon", jobPath),
+                    requireString(obj, "translationKey", jobPath),
+                    requireString(obj, "descriptionKey", jobPath),
+                    maxLevel,
                     rewards,
                     List.of(),
-                    defaultPassives(id, obj.get("translationKey").getAsString()),
+                    defaultPassives(id, requireString(obj, "translationKey", jobPath)),
                     toStringList(obj.getAsJsonArray("dailyTaskPool")),
                     toStringList(obj.getAsJsonArray("contractPool"))
                 ));
@@ -1256,7 +1296,7 @@ public final class ConfigManager {
                 JsonObject root = GSON.fromJson(reader, JsonObject.class);
                 return new PerksConfigLoader(parse(root));
             } catch (Exception e) {
-                AdvancedJobsMod.LOGGER.error("Failed to load perks config, using defaults", e);
+                logConfigFallback(path, "perks config", "default perk trees", e);
                 return new PerksConfigLoader(defaultTrees());
             }
         }
@@ -1266,26 +1306,57 @@ public final class ConfigManager {
         }
 
         private static Map<String, List<SkillBranch>> parse(JsonObject root) {
+            JsonObject validatedRoot = requireRootObject(root, "perks");
             Map<String, List<SkillBranch>> trees = new HashMap<>();
-            JsonObject jobs = root.getAsJsonObject("jobs");
+            JsonObject jobs = requireObject(validatedRoot, "jobs", "perks");
             for (String jobId : jobs.keySet()) {
+                String jobPath = "perks.jobs." + jobId;
+                if (!jobs.get(jobId).isJsonArray()) {
+                    throw new ConfigValidationService.ConfigValidationException(jobPath, "expected an array of branches");
+                }
                 List<SkillBranch> branches = new ArrayList<>();
-                for (JsonElement branchElement : jobs.getAsJsonArray(jobId)) {
-                    JsonObject branchObj = branchElement.getAsJsonObject();
+                java.util.Set<String> branchIds = new java.util.HashSet<>();
+                java.util.Set<String> nodeIds = new java.util.HashSet<>();
+                java.util.Map<String, String> nodeParents = new LinkedHashMap<>();
+                JsonArray branchArray = jobs.getAsJsonArray(jobId);
+                for (int i = 0; i < branchArray.size(); i++) {
+                    String branchPath = jobPath + "[" + i + "]";
+                    JsonObject branchObj = requireObjectElement(branchArray.get(i), branchPath);
+                    String branchId = requireString(branchObj, "id", branchPath);
+                    validateUniqueId(branchIds, branchId, branchPath + ".id");
                     List<SkillNode> nodes = new ArrayList<>();
-                    for (JsonElement nodeElement : branchObj.getAsJsonArray("nodes")) {
-                        JsonObject nodeObj = nodeElement.getAsJsonObject();
+                    JsonArray nodeArray = requireArray(branchObj, "nodes", branchPath);
+                    for (int j = 0; j < nodeArray.size(); j++) {
+                        String nodePath = branchPath + ".nodes[" + j + "]";
+                        JsonObject nodeObj = requireObjectElement(nodeArray.get(j), nodePath);
+                        String nodeId = requireString(nodeObj, "id", nodePath);
+                        validateUniqueId(nodeIds, nodeId, nodePath + ".id");
+                        int requiredLevel = requireInt(nodeObj, "requiredLevel", nodePath);
+                        int cost = requireInt(nodeObj, "cost", nodePath);
+                        double effectValue = requireDouble(nodeObj, "effectValue", nodePath);
+                        validatePositiveInt(nodePath + ".requiredLevel", requiredLevel, false);
+                        validatePositiveInt(nodePath + ".cost", cost, false);
+                        validatePositiveDouble(nodePath + ".effectValue", effectValue, true);
+                        String parentId = optionalString(nodeObj, "parentId", nodePath, null);
+                        if (parentId != null) {
+                            nodeParents.put(nodeId, parentId);
+                        }
                         nodes.add(new SkillNode(
-                            nodeObj.get("id").getAsString(),
-                            nodeObj.get("translationKey").getAsString(),
-                            nodeObj.get("requiredLevel").getAsInt(),
-                            nodeObj.get("cost").getAsInt(),
-                            nodeObj.has("parentId") ? nodeObj.get("parentId").getAsString() : null,
-                            nodeObj.get("effectType").getAsString(),
-                            nodeObj.get("effectValue").getAsDouble()
+                            nodeId,
+                            requireString(nodeObj, "translationKey", nodePath),
+                            requiredLevel,
+                            cost,
+                            parentId,
+                            requireString(nodeObj, "effectType", nodePath),
+                            effectValue
                         ));
                     }
-                    branches.add(new SkillBranch(branchObj.get("id").getAsString(), branchObj.get("translationKey").getAsString(), nodes));
+                    branches.add(new SkillBranch(branchId, requireString(branchObj, "translationKey", branchPath), nodes));
+                }
+                for (Map.Entry<String, String> entry : nodeParents.entrySet()) {
+                    if (!nodeIds.contains(entry.getValue())) {
+                        throw new ConfigValidationService.ConfigValidationException(jobPath, "node " + entry.getKey() + " references missing parentId " + entry.getValue());
+                    }
                 }
                 trees.put(jobId, branches);
             }
@@ -2059,35 +2130,56 @@ public final class ConfigManager {
                 writeDefaultDailyTasks(path);
             }
             try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-                JsonObject root = GSON.fromJson(reader, JsonObject.class);
+                JsonObject root = requireRootObject(GSON.fromJson(reader, JsonObject.class), "daily_tasks");
                 List<DailyTaskTemplate> tasks = new ArrayList<>();
-                for (JsonElement element : root.getAsJsonArray("tasks")) {
-                    JsonObject obj = element.getAsJsonObject();
+                java.util.Set<String> taskIds = new java.util.HashSet<>();
+                JsonArray taskArray = requireArray(root, "tasks", "daily_tasks");
+                for (int i = 0; i < taskArray.size(); i++) {
+                    String taskPath = "daily_tasks.tasks[" + i + "]";
+                    JsonObject obj = requireObjectElement(taskArray.get(i), taskPath);
+                    String taskId = requireString(obj, "id", taskPath);
+                    validateUniqueId(taskIds, taskId, taskPath + ".id");
+                    int goal = requireInt(obj, "goal", taskPath);
+                    double salary = requireDouble(obj, "salary", taskPath);
+                    double xp = requireDouble(obj, "xp", taskPath);
+                    int bonusCount = optionalInt(obj, "bonusCount", taskPath, 0);
+                    int buffDuration = optionalInt(obj, "buffDurationSeconds", taskPath, 0);
+                    int buffAmplifier = optionalInt(obj, "buffAmplifier", taskPath, 0);
+                    validatePositiveInt(taskPath + ".goal", goal, false);
+                    validatePositiveDouble(taskPath + ".salary", salary, true);
+                    validatePositiveDouble(taskPath + ".xp", xp, true);
+                    validatePositiveInt(taskPath + ".bonusCount", bonusCount, true);
+                    validatePositiveInt(taskPath + ".buffDurationSeconds", buffDuration, true);
+                    validatePositiveInt(taskPath + ".buffAmplifier", buffAmplifier, true);
                     tasks.add(new DailyTaskTemplate(
-                        obj.get("id").getAsString(),
-                        obj.get("jobId").getAsString(),
-                        JobActionType.valueOf(obj.get("type").getAsString()),
-                        ResourceLocationUtil.parse(obj.get("target").getAsString()),
-                        obj.get("goal").getAsInt(),
-                        obj.get("salary").getAsDouble(),
-                        obj.get("xp").getAsDouble(),
-                        obj.has("bonusItem") ? obj.get("bonusItem").getAsString() : null,
-                        obj.has("bonusCount") ? obj.get("bonusCount").getAsInt() : 0,
-                        obj.has("buffEffect") ? obj.get("buffEffect").getAsString() : null,
-                        obj.has("buffDurationSeconds") ? obj.get("buffDurationSeconds").getAsInt() : 0,
-                        obj.has("buffAmplifier") ? obj.get("buffAmplifier").getAsInt() : 0,
-                        obj.has("bonusTitle") ? obj.get("bonusTitle").getAsString() : null
+                        taskId,
+                        requireString(obj, "jobId", taskPath),
+                        requireEnum(JobActionType.class, obj, "type", taskPath),
+                        requireResourceLocation(obj, "target", taskPath),
+                        goal,
+                        salary,
+                        xp,
+                        optionalString(obj, "bonusItem", taskPath, null),
+                        bonusCount,
+                        optionalString(obj, "buffEffect", taskPath, null),
+                        buffDuration,
+                        buffAmplifier,
+                        optionalString(obj, "bonusTitle", taskPath, null)
                     ));
                 }
                 return new DailyTasksConfigLoader(tasks);
             } catch (Exception e) {
-                AdvancedJobsMod.LOGGER.error("Failed to read daily tasks config", e);
+                logConfigFallback(path, "daily tasks config", "an empty task list", e);
                 return new DailyTasksConfigLoader(List.of());
             }
         }
 
         public List<DailyTaskTemplate> tasksForJob(String jobId) {
             return tasks.stream().filter(task -> task.jobId().equals(jobId)).toList();
+        }
+
+        public List<DailyTaskTemplate> allTasks() {
+            return List.copyOf(tasks);
         }
 
         private static void writeDefaultDailyTasks(Path path) {
@@ -2163,37 +2255,60 @@ public final class ConfigManager {
                 writeDefaultContracts(path);
             }
             try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-                JsonObject root = GSON.fromJson(reader, JsonObject.class);
+                JsonObject root = requireRootObject(GSON.fromJson(reader, JsonObject.class), "contracts");
                 List<ContractTemplate> contracts = new ArrayList<>();
-                for (JsonElement element : root.getAsJsonArray("contracts")) {
-                    JsonObject obj = element.getAsJsonObject();
+                java.util.Set<String> contractIds = new java.util.HashSet<>();
+                JsonArray contractArray = requireArray(root, "contracts", "contracts");
+                for (int i = 0; i < contractArray.size(); i++) {
+                    String contractPath = "contracts.contracts[" + i + "]";
+                    JsonObject obj = requireObjectElement(contractArray.get(i), contractPath);
+                    String contractId = requireString(obj, "id", contractPath);
+                    validateUniqueId(contractIds, contractId, contractPath + ".id");
+                    int goal = requireInt(obj, "goal", contractPath);
+                    double salary = requireDouble(obj, "salary", contractPath);
+                    double xp = requireDouble(obj, "xp", contractPath);
+                    int durationSeconds = requireInt(obj, "durationSeconds", contractPath);
+                    int bonusCount = optionalInt(obj, "bonusCount", contractPath, 0);
+                    int buffDuration = optionalInt(obj, "buffDurationSeconds", contractPath, 0);
+                    int buffAmplifier = optionalInt(obj, "buffAmplifier", contractPath, 0);
+                    validatePositiveInt(contractPath + ".goal", goal, false);
+                    validatePositiveDouble(contractPath + ".salary", salary, true);
+                    validatePositiveDouble(contractPath + ".xp", xp, true);
+                    validatePositiveInt(contractPath + ".durationSeconds", durationSeconds, false);
+                    validatePositiveInt(contractPath + ".bonusCount", bonusCount, true);
+                    validatePositiveInt(contractPath + ".buffDurationSeconds", buffDuration, true);
+                    validatePositiveInt(contractPath + ".buffAmplifier", buffAmplifier, true);
                     contracts.add(new ContractTemplate(
-                        obj.get("id").getAsString(),
-                        obj.get("jobId").getAsString(),
-                        obj.get("rarity").getAsString(),
-                        JobActionType.valueOf(obj.get("type").getAsString()),
-                        ResourceLocationUtil.parse(obj.get("target").getAsString()),
-                        obj.get("goal").getAsInt(),
-                        obj.get("salary").getAsDouble(),
-                        obj.get("xp").getAsDouble(),
-                        obj.get("durationSeconds").getAsInt(),
-                        obj.has("bonusItem") ? obj.get("bonusItem").getAsString() : null,
-                        obj.has("bonusCount") ? obj.get("bonusCount").getAsInt() : 0,
-                        obj.has("buffEffect") ? obj.get("buffEffect").getAsString() : null,
-                        obj.has("buffDurationSeconds") ? obj.get("buffDurationSeconds").getAsInt() : 0,
-                        obj.has("buffAmplifier") ? obj.get("buffAmplifier").getAsInt() : 0,
-                        obj.has("bonusTitle") ? obj.get("bonusTitle").getAsString() : null
+                        contractId,
+                        requireString(obj, "jobId", contractPath),
+                        requireString(obj, "rarity", contractPath),
+                        requireEnum(JobActionType.class, obj, "type", contractPath),
+                        requireResourceLocation(obj, "target", contractPath),
+                        goal,
+                        salary,
+                        xp,
+                        durationSeconds,
+                        optionalString(obj, "bonusItem", contractPath, null),
+                        bonusCount,
+                        optionalString(obj, "buffEffect", contractPath, null),
+                        buffDuration,
+                        buffAmplifier,
+                        optionalString(obj, "bonusTitle", contractPath, null)
                     ));
                 }
                 return new ContractsConfigLoader(contracts);
             } catch (Exception e) {
-                AdvancedJobsMod.LOGGER.error("Failed to read contracts config", e);
+                logConfigFallback(path, "contracts config", "an empty contract list", e);
                 return new ContractsConfigLoader(List.of());
             }
         }
 
         public List<ContractTemplate> contractsForJob(String jobId) {
             return contracts.stream().filter(contract -> contract.jobId().equals(jobId)).toList();
+        }
+
+        public List<ContractTemplate> allContracts() {
+            return List.copyOf(contracts);
         }
 
         private static void writeDefaultContracts(Path path) {
@@ -2304,9 +2419,21 @@ public final class ConfigManager {
                 }
             }
             try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-                return new EconomyJsonConfig(GSON.fromJson(reader, JsonObject.class));
+                JsonObject root = requireRootObject(GSON.fromJson(reader, JsonObject.class), "economy");
+                String provider = optionalString(root, "provider", "economy", "external");
+                if (!provider.equals("internal") && !provider.equals("external")) {
+                    throw new ConfigValidationService.ConfigValidationException("economy.provider", "expected 'internal' or 'external' but got " + provider);
+                }
+                optionalString(root, "externalCurrency", "economy", "z_coin");
+                optionalString(root, "taxSinkAccountUuid", "economy", "00000000-0000-0000-0000-000000000001");
+                optionalDouble(root, "vipMultiplier", "economy", 1.0D);
+                optionalDouble(root, "eventMultiplier", "economy", 1.0D);
+                optionalInt(root, "eventEndsAtEpochSecond", "economy", 0);
+                validateMultiplierMap(root, "worldMultipliers", "economy");
+                validateMultiplierMap(root, "biomeMultipliers", "economy");
+                return new EconomyJsonConfig(root);
             } catch (Exception e) {
-                AdvancedJobsMod.LOGGER.error("Failed to load economy config", e);
+                logConfigFallback(path, "economy config", "default economy settings", e);
                 JsonObject fallback = new JsonObject();
                 fallback.addProperty("provider", "external");
                 fallback.addProperty("externalCurrency", "z_coin");
@@ -2386,6 +2513,7 @@ public final class ConfigManager {
                 AdvancedJobsMod.LOGGER.error("Failed to save economy config", e);
             }
         }
+
     }
 
     public record DailyTaskTemplate(String id, String jobId, JobActionType type, ResourceLocation target, int goal, double salary, double xp,
