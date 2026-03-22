@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.7
+
+Maintenance update.
+
+Highlights:
+
+- silenced the final Forge `47.4.18` removal warnings in mod bootstrap where Forge still exposes deprecated context accessors
+- kept the bootstrap behavior unchanged while finishing the compatibility cleanup pass
+- synchronized the mod version for the warning-free build release
+
 ## 1.0.6
 
 Maintenance update.

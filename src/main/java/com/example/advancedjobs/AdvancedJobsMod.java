@@ -31,6 +31,7 @@ public final class AdvancedJobsMod {
     private final JobManager jobManager = new JobManager();
     private final JobEventHandler jobEventHandler = new JobEventHandler(jobManager);
 
+    @SuppressWarnings("removal")
     public AdvancedJobsMod() {
         instance = this;
         var modBus = net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext.get().getModEventBus();
