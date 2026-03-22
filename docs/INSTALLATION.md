@@ -1,0 +1,95 @@
+# Installation
+
+## Requirements
+
+- Minecraft `1.20.1`
+- Forge `47.x`
+- Java `17`
+
+## Server Installation
+
+1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.0.jar`.
+2. Put the jar into the server `mods` folder.
+3. Start the server once.
+4. Stop the server.
+5. Review generated files in `config/advancedjobs/`.
+6. Start the server again after editing config files.
+
+## First Boot Output
+
+On first launch the mod creates:
+
+- `common.json`
+- `jobs.json`
+- `perks.json`
+- `daily_tasks.json`
+- `contracts.json`
+- `economy.json`
+- `client.json`
+- `npc_skins.json`
+- `npc_labels.json`
+
+All of them are written under:
+
+```text
+config/advancedjobs/
+```
+
+## Optional Client Mods
+
+The core mod works without client-side companions, but these are supported:
+
+- JEI
+- JourneyMap
+
+They are optional and not required for jobs, salary, skills, or NPC hub features.
+
+## External Economy Installation
+
+To route salary and payments through `Z_Economy`:
+
+1. Install `Z_Economy` on the same server.
+2. Open `config/advancedjobs/economy.json`.
+3. Set:
+   - `"provider": "external"`
+   - `"externalCurrency": "z_coin"`
+4. Restart the server.
+
+Example:
+
+```json
+{
+  "provider": "external",
+  "externalCurrency": "z_coin",
+  "taxSinkAccountUuid": "00000000-0000-0000-0000-000000000001"
+}
+```
+
+## Verifying External Economy
+
+Check the server log after start. The jobs mod writes an economy status line.
+
+Expected state:
+
+- `configuredProvider=external`
+- `activeProvider=external`
+- `bridgeAvailable=true`
+
+Then claim salary in game and verify:
+
+- `/jobs salary`
+- `Z_Economy` balance command
+
+## Build From Source
+
+```powershell
+$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot'
+$env:Path="$env:JAVA_HOME\bin;$env:Path"
+.\gradlew.bat build
+```
+
+Artifact:
+
+```text
+build/libs/advancedjobs-1.0.0.jar
+```
