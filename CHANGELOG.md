@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.4
+
+Maintenance update.
+
+Highlights:
+
+- updated the project to the current official Minecraft Forge `47.3.34` for Minecraft `1.20.1`
+- raised the minimum required Forge version in mod metadata to match the updated build target
+- synchronized README and installation documentation with the new Forge baseline
+
 ## 1.0.3
 
 Maintenance update.

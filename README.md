@@ -14,7 +14,7 @@
 ## Requirements
 
 - Minecraft `1.20.1`
-- Forge `47.x`
+- Forge `47.3.34+`
 - Java `17`
 
 ## Features
@@ -48,7 +48,7 @@
 
 ## Quick Start
 
-1. Build the mod or take `build/libs/advancedjobs-1.0.3.jar`.
+1. Build the mod or take `build/libs/advancedjobs-1.0.4.jar`.
 2. Put the jar into the server `mods` directory.
 3. Start the server once so configs are generated.
 4. Review `config/ZAdvancedJobs/`.
@@ -87,7 +87,7 @@ Optional client integrations:
 Output:
 
 ```text
-build/libs/advancedjobs-1.0.3.jar
+build/libs/advancedjobs-1.0.4.jar
 ```
 
 ## Generated Config Files
