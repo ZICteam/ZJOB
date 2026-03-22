@@ -141,6 +141,9 @@ Full reference:
 - [docs/UI.md](docs/UI.md)
 - [UI_STYLE_NOTES.md](UI_STYLE_NOTES.md)
 - [VANILLA_UI_TEXTURES.md](VANILLA_UI_TEXTURES.md)
+- [CHANGELOG.md](CHANGELOG.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [LICENSE](LICENSE)
 
 ## Z_Economy Integration
 
