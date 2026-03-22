@@ -7,6 +7,7 @@ import com.example.advancedjobs.model.JobDefinition;
 import com.example.advancedjobs.model.RewardDefinition;
 import com.example.advancedjobs.model.SkillBranch;
 import com.example.advancedjobs.model.SkillNode;
+import com.example.advancedjobs.util.ResourceLocationUtil;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -569,7 +570,7 @@ public final class ConfigManager {
                     JsonObject reward = rewardElement.getAsJsonObject();
                     rewards.add(new ActionRewardEntry(
                         JobActionType.valueOf(reward.get("type").getAsString()),
-                        new ResourceLocation(reward.get("target").getAsString()),
+                        ResourceLocationUtil.parse(reward.get("target").getAsString()),
                         new RewardDefinition(reward.get("salary").getAsDouble(), reward.get("xp").getAsDouble(), 0.0D, 0.0D)
                     ));
                 }
@@ -827,7 +828,7 @@ public final class ConfigManager {
         }
 
         private static ActionRewardEntry reward(JobActionType type, String target, double salary, double xp) {
-            return new ActionRewardEntry(type, new ResourceLocation(target), new RewardDefinition(salary, xp, 0.0D, 0.0D));
+            return new ActionRewardEntry(type, ResourceLocationUtil.parse(target), new RewardDefinition(salary, xp, 0.0D, 0.0D));
         }
 
         private static ActionRewardEntry tuneReward(String jobId, ActionRewardEntry entry) {
@@ -2066,7 +2067,7 @@ public final class ConfigManager {
                         obj.get("id").getAsString(),
                         obj.get("jobId").getAsString(),
                         JobActionType.valueOf(obj.get("type").getAsString()),
-                        new ResourceLocation(obj.get("target").getAsString()),
+                        ResourceLocationUtil.parse(obj.get("target").getAsString()),
                         obj.get("goal").getAsInt(),
                         obj.get("salary").getAsDouble(),
                         obj.get("xp").getAsDouble(),
@@ -2171,7 +2172,7 @@ public final class ConfigManager {
                         obj.get("jobId").getAsString(),
                         obj.get("rarity").getAsString(),
                         JobActionType.valueOf(obj.get("type").getAsString()),
-                        new ResourceLocation(obj.get("target").getAsString()),
+                        ResourceLocationUtil.parse(obj.get("target").getAsString()),
                         obj.get("goal").getAsInt(),
                         obj.get("salary").getAsDouble(),
                         obj.get("xp").getAsDouble(),

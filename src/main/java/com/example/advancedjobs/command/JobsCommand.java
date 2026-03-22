@@ -13,6 +13,7 @@ import com.example.advancedjobs.model.JobProgress;
 import com.example.advancedjobs.model.PlayerJobProfile;
 import com.example.advancedjobs.model.SkillBranch;
 import com.example.advancedjobs.model.SkillNode;
+import com.example.advancedjobs.util.ResourceLocationUtil;
 import com.example.advancedjobs.util.TextUtil;
 import com.example.advancedjobs.util.TimeUtil;
 import com.mojang.brigadier.CommandDispatcher;
@@ -1387,7 +1388,7 @@ public final class JobsCommand {
     private static ResourceLocation currentBiomeId(ServerPlayer player) {
         return player.serverLevel().getBiome(player.blockPosition()).unwrapKey()
             .map(key -> key.location())
-            .orElse(new ResourceLocation("minecraft", "plains"));
+            .orElse(ResourceLocationUtil.minecraft("plains"));
     }
 
     private static double currentWorldMultiplier(ServerPlayer player) {
@@ -1560,7 +1561,7 @@ public final class JobsCommand {
         if (parts.length != 2) {
             return humanizeAction(actionKey);
         }
-        return humanizeAction(parts[0]) + " " + targetName(new ResourceLocation(parts[1]));
+        return humanizeAction(parts[0]) + " " + targetName(ResourceLocationUtil.parse(parts[1]));
     }
 
     private static Component actionLabel(String action) {
@@ -1584,11 +1585,11 @@ public final class JobsCommand {
                                              String bonusTitle) {
         if (bonusItem != null && !bonusItem.isBlank() && bonusCount > 0) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.reward_bonus_item",
-                targetName(new ResourceLocation(bonusItem)), bonusCount));
+                targetName(ResourceLocationUtil.parse(bonusItem)), bonusCount));
         }
         if (buffEffect != null && !buffEffect.isBlank() && buffDurationSeconds > 0) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.reward_bonus_buff",
-                effectName(new ResourceLocation(buffEffect)),
+                effectName(ResourceLocationUtil.parse(buffEffect)),
                 TimeUtil.formatRemainingSeconds(buffDurationSeconds),
                 buffAmplifier + 1));
         }

@@ -2,6 +2,7 @@ package com.example.advancedjobs.client;
 
 import com.example.advancedjobs.AdvancedJobsMod;
 import com.example.advancedjobs.entity.NpcRole;
+import com.example.advancedjobs.util.ResourceLocationUtil;
 import com.google.gson.JsonObject;
 import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import net.minecraft.client.Minecraft;
@@ -58,7 +59,7 @@ public final class NpcSkinManager {
         try {
             byte[] bytes = Base64.getDecoder().decode(imageBase64);
             var image = com.mojang.blaze3d.platform.NativeImage.read(new ByteArrayInputStream(bytes));
-            ResourceLocation id = new ResourceLocation(AdvancedJobsMod.MOD_ID, "npc_skin/" + role.id());
+            ResourceLocation id = ResourceLocationUtil.mod("npc_skin/" + role.id());
             Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(image));
             LOCAL_TEXTURES.put(role, id);
         } catch (Exception e) {

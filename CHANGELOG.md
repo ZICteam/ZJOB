@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.6
+
+Maintenance update.
+
+Highlights:
+
+- replaced deprecated `ResourceLocation` constructors with current Forge-compatible factory methods across config, GUI, jobs, networking, and event code
+- reduced compiler noise on Forge `47.4.18` while preserving existing gameplay behavior
+- synchronized the mod version for the compatibility cleanup release
+
 ## 1.0.5
 
 Maintenance update.

@@ -1,6 +1,7 @@
 package com.example.advancedjobs.content;
 
 import com.example.advancedjobs.AdvancedJobsMod;
+import com.example.advancedjobs.util.ResourceLocationUtil;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -11,8 +12,8 @@ import net.minecraftforge.registries.RegisterEvent;
 import net.minecraftforge.registries.RegistryObject;
 
 public final class ModCreativeTabs {
-    private static final ResourceLocation CREATIVE_TAB_REGISTRY = new ResourceLocation("minecraft", "creative_mode_tab");
-    private static final ResourceLocation MAIN_ID = new ResourceLocation(AdvancedJobsMod.MOD_ID, "main");
+    private static final ResourceLocation CREATIVE_TAB_REGISTRY = ResourceLocationUtil.minecraft("creative_mode_tab");
+    private static final ResourceLocation MAIN_ID = ResourceLocationUtil.mod("main");
 
     private ModCreativeTabs() {
     }

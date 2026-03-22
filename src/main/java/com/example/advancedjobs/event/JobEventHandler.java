@@ -15,6 +15,7 @@ import com.example.advancedjobs.entity.StatusBoardEntity;
 import com.example.advancedjobs.job.JobManager;
 import com.example.advancedjobs.model.JobActionType;
 import com.example.advancedjobs.util.DebugLog;
+import com.example.advancedjobs.util.ResourceLocationUtil;
 import com.example.advancedjobs.util.TextUtil;
 import com.example.advancedjobs.util.TimeUtil;
 import net.minecraft.core.BlockPos;
@@ -586,7 +587,7 @@ public class JobEventHandler {
             return;
         }
         if (living instanceof Villager villager) {
-            ResourceLocation id = new ResourceLocation("minecraft", "villager");
+            ResourceLocation id = ResourceLocationUtil.minecraft("villager");
             if (antiExploit.isOnCooldown(player.getUUID(), "trade_cd|" + id)) {
                 DebugLog.log("Blocked by cooldown: player=" + player.getGameProfile().getName() + " action=trade target=" + id);
                 return;
@@ -665,7 +666,7 @@ public class JobEventHandler {
                 DebugLog.log("Blocked by cooldown: player=" + player.getGameProfile().getName() + " action=brew target=minecraft:potion");
                 return;
             }
-            rewards.reward(new JobActionContext(player, JobActionType.BREW_POTION, new ResourceLocation("minecraft", "potion"), player.serverLevel(), event.getPos(), false));
+            rewards.reward(new JobActionContext(player, JobActionType.BREW_POTION, ResourceLocationUtil.minecraft("potion"), player.serverLevel(), event.getPos(), false));
             if (jobManager.hasAssignedJob(player, "alchemist")
                 && (jobManager.effectBonus(player, "magic_bonus") >= 0.10D || jobManager.effectBonus(player, "ingredient_save") > 0.0D)
                 && player.getRandom().nextDouble() < 0.20D) {
@@ -696,7 +697,7 @@ public class JobEventHandler {
                 }
             }
         } else if (isLootContainer(state)) {
-            ResourceLocation id = state.is(Blocks.BARREL) ? new ResourceLocation("minecraft", "barrel") : new ResourceLocation("minecraft", "chest");
+            ResourceLocation id = state.is(Blocks.BARREL) ? ResourceLocationUtil.minecraft("barrel") : ResourceLocationUtil.minecraft("chest");
             if (antiExploit.isOnCooldown(player.getUUID(), "loot_cd|" + id + "|" + event.getPos().asLong())) {
                 DebugLog.log("Blocked by cooldown: player=" + player.getGameProfile().getName() + " action=loot target=" + id);
                 return;
@@ -787,21 +788,21 @@ public class JobEventHandler {
         }
         if (jobManager.hasAssignedJob(player, "animal_breeder")
             && (jobManager.effectBonus(player, "breed_bonus") >= 0.10D || jobManager.effectBonus(player, "pasture_aura") >= 0.10D)) {
-            if (id.equals(new ResourceLocation("minecraft", "cow")) && player.getRandom().nextDouble() < 0.16D) {
+            if (id.equals(ResourceLocationUtil.minecraft("cow")) && player.getRandom().nextDouble() < 0.16D) {
                 ItemStack milkFood = new ItemStack(Items.LEATHER);
                 if (!player.addItem(milkFood)) {
                     player.drop(milkFood, false);
                 }
                 player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 120, 0, true, false));
-            } else if (id.equals(new ResourceLocation("minecraft", "chicken")) && player.getRandom().nextDouble() < 0.16D) {
+            } else if (id.equals(ResourceLocationUtil.minecraft("chicken")) && player.getRandom().nextDouble() < 0.16D) {
                 ItemStack eggs = new ItemStack(Items.EGG);
                 if (!player.addItem(eggs)) {
                     player.drop(eggs, false);
                 }
-            } else if (id.equals(new ResourceLocation("minecraft", "pig")) && player.getRandom().nextDouble() < 0.14D) {
+            } else if (id.equals(ResourceLocationUtil.minecraft("pig")) && player.getRandom().nextDouble() < 0.14D) {
                 player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 140, 0, true, false));
             }
-            if (id.equals(new ResourceLocation("minecraft", "chicken")) && player.getRandom().nextDouble() < 0.12D) {
+            if (id.equals(ResourceLocationUtil.minecraft("chicken")) && player.getRandom().nextDouble() < 0.12D) {
                 ItemStack feathers = new ItemStack(Items.FEATHER, 2);
                 if (!player.addItem(feathers)) {
                     player.drop(feathers, false);
@@ -810,7 +811,7 @@ public class JobEventHandler {
         }
         if (jobManager.hasAssignedJob(player, "shepherd")
             && (jobManager.effectBonus(player, "pasture_aura") >= 0.10D || jobManager.effectBonus(player, "breed_bonus") >= 0.10D)
-            && id.equals(new ResourceLocation("minecraft", "sheep"))
+            && id.equals(ResourceLocationUtil.minecraft("sheep"))
             && player.getRandom().nextDouble() < 0.18D) {
             ItemStack wool = new ItemStack(Items.WHITE_WOOL, 2);
             if (!player.addItem(wool)) {
@@ -823,16 +824,16 @@ public class JobEventHandler {
         if (jobManager.hasAssignedJob(player, "beekeeper")
             && (jobManager.effectBonus(player, "honey_bonus") > 0.0D || jobManager.effectBonus(player, "pasture_aura") >= 0.10D)
             && player.getRandom().nextDouble() < 0.16D) {
-            ItemStack beeReward = id.equals(new ResourceLocation("minecraft", "bee"))
+            ItemStack beeReward = id.equals(ResourceLocationUtil.minecraft("bee"))
                 ? new ItemStack(Items.HONEYCOMB, 2)
                 : new ItemStack(Items.HONEY_BOTTLE);
             if (!player.addItem(beeReward)) {
                 player.drop(beeReward, false);
             }
-            if (id.equals(new ResourceLocation("minecraft", "bee"))) {
+            if (id.equals(ResourceLocationUtil.minecraft("bee"))) {
                 player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 120, 0, true, false));
             }
-            if (id.equals(new ResourceLocation("minecraft", "bee")) && player.getRandom().nextDouble() < 0.10D) {
+            if (id.equals(ResourceLocationUtil.minecraft("bee")) && player.getRandom().nextDouble() < 0.10D) {
                 ItemStack flower = new ItemStack(Items.SUNFLOWER);
                 if (!player.addItem(flower)) {
                     player.drop(flower, false);
@@ -850,7 +851,7 @@ public class JobEventHandler {
             ChunkPos chunkPos = new ChunkPos(player.blockPosition());
             long exploredChunkCooldownMs = ConfigManager.COMMON.exploredChunkRewardCooldownSeconds.get() * 1000L;
             if (antiExploit.markChunkExplored(player.getUUID(), chunkPos, exploredChunkCooldownMs)) {
-                JobActionContext context = new JobActionContext(player, JobActionType.EXPLORE_CHUNK, new ResourceLocation("minecraft", "chunk"), player.serverLevel(), player.blockPosition(), false);
+                JobActionContext context = new JobActionContext(player, JobActionType.EXPLORE_CHUNK, ResourceLocationUtil.minecraft("chunk"), player.serverLevel(), player.blockPosition(), false);
                 rewards.reward(context);
                 if (jobManager.hasAssignedJob(player, "explorer") && jobManager.effectBonus(player, "explore_bonus") >= 0.10D && player.getRandom().nextDouble() < 0.10D) {
                     ItemStack map = new ItemStack(Items.MAP);
@@ -1191,7 +1192,7 @@ public class JobEventHandler {
                 player.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, true, false));
             }
         } else if ("guard".equals(jobId)
-            && (targetId.equals(new ResourceLocation("minecraft", "pillager")) || targetId.equals(new ResourceLocation("minecraft", "vindicator")))
+            && (targetId.equals(ResourceLocationUtil.minecraft("pillager")) || targetId.equals(ResourceLocationUtil.minecraft("vindicator")))
             && (combatBonus >= 0.10D || jobManager.effectBonus(player, "combat_aura") >= 0.10D)) {
             player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 120, 0, true, false));
             player.addEffect(new MobEffectInstance(MobEffects.HERO_OF_THE_VILLAGE, 160, 0, true, false));
@@ -1201,26 +1202,26 @@ public class JobEventHandler {
             if (player.getRandom().nextDouble() < 0.16D) {
                 net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.SHIELD));
             }
-            if (targetId.equals(new ResourceLocation("minecraft", "vindicator")) && player.getRandom().nextDouble() < 0.12D) {
+            if (targetId.equals(ResourceLocationUtil.minecraft("vindicator")) && player.getRandom().nextDouble() < 0.12D) {
                 net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.IRON_INGOT));
-            } else if (targetId.equals(new ResourceLocation("minecraft", "pillager")) && player.getRandom().nextDouble() < 0.12D) {
+            } else if (targetId.equals(ResourceLocationUtil.minecraft("pillager")) && player.getRandom().nextDouble() < 0.12D) {
                 net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.CROSSBOW));
             }
         } else if ("bounty_hunter".equals(jobId)
-            && (targetId.equals(new ResourceLocation("minecraft", "evoker"))
-            || targetId.equals(new ResourceLocation("minecraft", "blaze"))
-            || targetId.equals(new ResourceLocation("minecraft", "witch")))
+            && (targetId.equals(ResourceLocationUtil.minecraft("evoker"))
+            || targetId.equals(ResourceLocationUtil.minecraft("blaze"))
+            || targetId.equals(ResourceLocationUtil.minecraft("witch")))
             && (combatBonus >= 0.10D || jobManager.effectBonus(player, "elite_tracker") > 0.0D)) {
             if (player.getRandom().nextDouble() < 0.18D) {
                 net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.EMERALD, 2));
             }
             player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 120, 0, true, false));
-            if (targetId.equals(new ResourceLocation("minecraft", "blaze"))) {
+            if (targetId.equals(ResourceLocationUtil.minecraft("blaze"))) {
                 player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 140, 0, true, false));
                 if (player.getRandom().nextDouble() < 0.12D) {
                     net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.BLAZE_POWDER, 2));
                 }
-            } else if (targetId.equals(new ResourceLocation("minecraft", "witch"))) {
+            } else if (targetId.equals(ResourceLocationUtil.minecraft("witch"))) {
                 player.addEffect(new MobEffectInstance(MobEffects.LUCK, 180, 0, true, false));
                 if (player.getRandom().nextDouble() < 0.16D) {
                     net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.GLASS_BOTTLE, 2));
@@ -1229,7 +1230,7 @@ public class JobEventHandler {
                 player.addEffect(new MobEffectInstance(MobEffects.LUCK, 140, 0, true, false));
             }
         } else if ("defender".equals(jobId)
-            && (targetId.equals(new ResourceLocation("minecraft", "zombie")) || targetId.equals(new ResourceLocation("minecraft", "husk")))
+            && (targetId.equals(ResourceLocationUtil.minecraft("zombie")) || targetId.equals(ResourceLocationUtil.minecraft("husk")))
             && (combatBonus >= 0.10D || combatAura >= 0.10D)) {
             player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 140, 0, true, false));
             player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 120, 0, true, false));
@@ -1239,9 +1240,9 @@ public class JobEventHandler {
             if (player.getRandom().nextDouble() < 0.20D) {
                 net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.IRON_NUGGET, 3));
             }
-            if (targetId.equals(new ResourceLocation("minecraft", "husk")) && player.getRandom().nextDouble() < 0.12D) {
+            if (targetId.equals(ResourceLocationUtil.minecraft("husk")) && player.getRandom().nextDouble() < 0.12D) {
                 net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.ROTTEN_FLESH, 2));
-            } else if (targetId.equals(new ResourceLocation("minecraft", "zombie")) && player.getRandom().nextDouble() < 0.12D) {
+            } else if (targetId.equals(ResourceLocationUtil.minecraft("zombie")) && player.getRandom().nextDouble() < 0.12D) {
                 net.minecraft.world.level.block.Block.popResource(player.serverLevel(), pos, new ItemStack(Items.BREAD));
             }
         } else if ("boss_hunter".equals(jobId)
@@ -1937,7 +1938,7 @@ public class JobEventHandler {
     }
 
     private boolean isBoss(ResourceLocation id) {
-        return id.equals(new ResourceLocation("minecraft", "wither")) || id.equals(new ResourceLocation("minecraft", "ender_dragon"));
+        return id.equals(ResourceLocationUtil.minecraft("wither")) || id.equals(ResourceLocationUtil.minecraft("ender_dragon"));
     }
 
     private boolean isLog(BlockState state) {

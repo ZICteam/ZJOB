@@ -23,6 +23,7 @@ import com.example.advancedjobs.network.SyncJobCatalogPacket;
 import com.example.advancedjobs.network.SyncLeaderboardPacket;
 import com.example.advancedjobs.network.SyncPlayerJobsPacket;
 import com.example.advancedjobs.util.DebugLog;
+import com.example.advancedjobs.util.ResourceLocationUtil;
 import com.example.advancedjobs.util.RewardUtil;
 import com.example.advancedjobs.util.TextUtil;
 import com.example.advancedjobs.util.TimeUtil;
@@ -1279,7 +1280,7 @@ public class JobManager {
     private void grantTaskExtras(ServerPlayer player, String bonusItemId, int bonusCount, String buffEffectId, int buffDurationSeconds, int buffAmplifier) {
         if (bonusItemId != null && !bonusItemId.isBlank() && bonusCount > 0) {
             try {
-                Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(bonusItemId));
+                Item item = ForgeRegistries.ITEMS.getValue(ResourceLocationUtil.parse(bonusItemId));
                 if (item != null) {
                     ItemStack stack = new ItemStack(item, bonusCount);
                     if (!player.getInventory().add(stack)) {
@@ -1291,7 +1292,7 @@ public class JobManager {
         }
         if (buffEffectId != null && !buffEffectId.isBlank() && buffDurationSeconds > 0) {
             try {
-                MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(new ResourceLocation(buffEffectId));
+                MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(ResourceLocationUtil.parse(buffEffectId));
                 if (effect != null) {
                     player.addEffect(new MobEffectInstance(effect, buffDurationSeconds * 20, Math.max(0, buffAmplifier)));
                 }
@@ -1681,7 +1682,7 @@ public class JobManager {
 
     private Component itemName(String itemId) {
         try {
-            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
+            Item item = ForgeRegistries.ITEMS.getValue(ResourceLocationUtil.parse(itemId));
             if (item != null) {
                 return item.getDescription();
             }
@@ -1692,7 +1693,7 @@ public class JobManager {
 
     private Component effectName(String effectId) {
         try {
-            MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(new ResourceLocation(effectId));
+            MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(ResourceLocationUtil.parse(effectId));
             if (effect != null) {
                 return effect.getDisplayName();
             }
@@ -1710,7 +1711,7 @@ public class JobManager {
 
     private String targetName(String targetId) {
         try {
-            ResourceLocation id = new ResourceLocation(targetId);
+            ResourceLocation id = ResourceLocationUtil.parse(targetId);
             Item item = ForgeRegistries.ITEMS.getValue(id);
             if (item != null) {
                 return item.getDescription().getString();

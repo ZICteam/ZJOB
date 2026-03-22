@@ -12,6 +12,7 @@ import com.example.advancedjobs.network.UpgradePerkPacket;
 import com.example.advancedjobs.util.TextUtil;
 import com.example.advancedjobs.util.TimeUtil;
 import com.example.advancedjobs.util.XpFormulaUtil;
+import com.example.advancedjobs.util.ResourceLocationUtil;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -40,14 +41,14 @@ public class JobsMainScreen extends Screen {
     private static final int TOP_PAGE_SIZE = 4;
     private static final int BAR_WIDTH = 120;
     private static final String OVERALL_LEADERBOARD_ID = "all";
-    private static final ResourceLocation ADVANCEMENTS_WINDOW = new ResourceLocation("minecraft", "textures/gui/advancements/window.png");
-    private static final ResourceLocation ADVANCEMENTS_WIDGETS = new ResourceLocation("minecraft", "textures/gui/advancements/widgets.png");
-    private static final ResourceLocation ADVANCEMENTS_TABS = new ResourceLocation("minecraft", "textures/gui/advancements/tabs.png");
-    private static final ResourceLocation ADVANCEMENTS_STONE = new ResourceLocation("minecraft", "textures/gui/advancements/backgrounds/stone.png");
-    private static final ResourceLocation GENERIC_54 = new ResourceLocation("minecraft", "textures/gui/container/generic_54.png");
-    private static final ResourceLocation SKILL_STATUS_CHECK = new ResourceLocation("advancedjobs", "textures/gui/skills/status_check.png");
-    private static final ResourceLocation SKILL_STATUS_CROSS = new ResourceLocation("advancedjobs", "textures/gui/skills/status_cross.png");
-    private static final ResourceLocation SKILL_STATUS_PLUS = new ResourceLocation("advancedjobs", "textures/gui/skills/status_plus.png");
+    private static final ResourceLocation ADVANCEMENTS_WINDOW = ResourceLocationUtil.minecraft("textures/gui/advancements/window.png");
+    private static final ResourceLocation ADVANCEMENTS_WIDGETS = ResourceLocationUtil.minecraft("textures/gui/advancements/widgets.png");
+    private static final ResourceLocation ADVANCEMENTS_TABS = ResourceLocationUtil.minecraft("textures/gui/advancements/tabs.png");
+    private static final ResourceLocation ADVANCEMENTS_STONE = ResourceLocationUtil.minecraft("textures/gui/advancements/backgrounds/stone.png");
+    private static final ResourceLocation GENERIC_54 = ResourceLocationUtil.minecraft("textures/gui/container/generic_54.png");
+    private static final ResourceLocation SKILL_STATUS_CHECK = ResourceLocationUtil.mod("textures/gui/skills/status_check.png");
+    private static final ResourceLocation SKILL_STATUS_CROSS = ResourceLocationUtil.mod("textures/gui/skills/status_cross.png");
+    private static final ResourceLocation SKILL_STATUS_PLUS = ResourceLocationUtil.mod("textures/gui/skills/status_plus.png");
 
     private Tab currentTab = Tab.PROFESSIONS;
     private int listOffset;
@@ -2538,7 +2539,7 @@ public class JobsMainScreen extends Screen {
     private String effectLabel(String effectType) {
         if (effectType.contains(":")) {
             try {
-                ResourceLocation id = new ResourceLocation(effectType);
+                ResourceLocation id = ResourceLocationUtil.parse(effectType);
                 MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(id);
                 if (effect != null) {
                     return effect.getDisplayName().getString();
@@ -2616,7 +2617,7 @@ public class JobsMainScreen extends Screen {
 
     private String targetLabel(String targetId) {
         try {
-            ResourceLocation id = new ResourceLocation(targetId);
+            ResourceLocation id = ResourceLocationUtil.parse(targetId);
             if (ForgeRegistries.ITEMS.containsKey(id)) {
                 Item item = ForgeRegistries.ITEMS.getValue(id);
                 if (item != null) {
@@ -3233,7 +3234,7 @@ public class JobsMainScreen extends Screen {
             return ItemStack.EMPTY;
         }
         try {
-            ResourceLocation id = new ResourceLocation(job.get("icon").getAsString());
+            ResourceLocation id = ResourceLocationUtil.parse(job.get("icon").getAsString());
             Item item = ForgeRegistries.ITEMS.getValue(id);
         return item == null ? ItemStack.EMPTY : new ItemStack(item);
         } catch (Exception ignored) {

@@ -2,6 +2,7 @@ package com.example.advancedjobs.integration.jei;
 
 import com.example.advancedjobs.AdvancedJobsMod;
 import com.example.advancedjobs.content.ModItems;
+import com.example.advancedjobs.util.ResourceLocationUtil;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.registration.IRecipeRegistration;
@@ -11,7 +12,7 @@ import net.minecraft.world.item.ItemStack;
 
 @JeiPlugin
 public final class AdvancedJobsJeiPlugin implements IModPlugin {
-    private static final ResourceLocation PLUGIN_UID = new ResourceLocation(AdvancedJobsMod.MOD_ID, "jei_plugin");
+    private static final ResourceLocation PLUGIN_UID = ResourceLocationUtil.mod("jei_plugin");
 
     @Override
     public ResourceLocation getPluginUid() {
