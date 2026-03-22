@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.16
+
+Maintenance update.
+
+Highlights:
+
+- extracted salary claim and salary credit logic from `JobManager` into a dedicated `JobSalaryService`
+- kept manual salary claims, instant salary payouts, tax routing, and cooldown behavior intact while reducing `JobManager` responsibility
+- synchronized release metadata for the first domain-service extraction inside the job layer
+
+## 1.0.15
+
+Maintenance update.
+
+Highlights:
+
+- extracted reward bonus and passive perk logic from `JobEventHandler` into a dedicated `JobBonusHandler`
+- reduced `JobEventHandler` to a much smaller event-routing role while keeping existing smelting, fishing, combat, and passive job bonuses intact
+- synchronized release metadata for the next major event architecture cleanup step
+
 ## 1.0.14
 
 Maintenance update.

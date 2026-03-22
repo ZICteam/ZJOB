@@ -57,6 +57,7 @@ public class JobManager {
     private final JobProgressService progressService = new JobProgressService();
     private final SkillTreeService skillTreeService = new SkillTreeService();
     private final PerkService perkService = new PerkService();
+    private final JobSalaryService salaryService = new JobSalaryService(progressService);
     private final Map<UUID, PlayerJobProfile> cache = new LinkedHashMap<>();
     private final InternalEconomyProvider internalEconomyProvider = new InternalEconomyProvider();
     private final ExternalEconomyBridge externalEconomyBridge = new ExternalEconomyBridge();
@@ -367,7 +368,7 @@ public class JobManager {
             );
 
             progressService.addXp(profile, definition, finalReward.xp());
-            creditSalary(context.player(), profile, definition.id(), finalReward.salary(), "job_action");
+            salaryService.creditSalary(context.player(), profile, definition.id(), finalReward.salary(), "job_action", economyProvider);
             progress.actionStats().merge(context.actionType().name() + "|" + context.targetId(), 1, Integer::sum);
             updateDailyTasks(context.player(), profile, definition.id(), context, finalReward);
             updateContracts(context.player(), profile, definition.id(), context, finalReward);
@@ -391,74 +392,11 @@ public class JobManager {
 
     public double claimSalary(ServerPlayer player) {
         PlayerJobProfile profile = getOrCreateProfile(player);
-        long remainingCooldown = salaryClaimCooldownRemaining(profile);
-        if (remainingCooldown > 0L) {
-            return -remainingCooldown;
-        }
-        List<String> assignedJobs = assignedJobIds(profile);
-        if (assignedJobs.isEmpty()) {
-            return 0.0D;
-        }
-        Map<String, Double> claimedPerJob = new LinkedHashMap<>();
-        double remainingCap = ConfigManager.COMMON.maxSalaryPerClaim.get();
-        double gross = 0.0D;
-        for (String jobId : assignedJobs) {
-            if (remainingCap <= 0.0D) {
-                break;
-            }
-            JobProgress progress = profile.progress(jobId);
-            double claimed = progress.takePendingSalary(remainingCap);
-            if (claimed <= 0.0D) {
-                continue;
-            }
-            claimedPerJob.put(jobId, claimed);
-            gross += claimed;
-            remainingCap -= claimed;
-        }
-        if (gross <= 0.0D) {
-            return 0.0D;
-        }
-        double taxAmount = gross * ConfigManager.COMMON.salaryTaxRate.get();
-        double payout = Math.max(0.0D, gross - taxAmount);
-        AdvancedJobsMod.LOGGER.info(
-            "AdvancedJobs salary claim requested: player={} provider={} currency={} gross={} tax={} net={} jobs={}",
-            player.getGameProfile().getName(),
-            economyProvider.id(),
-            ConfigManager.economy().externalCurrencyId(),
-            gross,
-            taxAmount,
-            payout,
-            assignedJobs
-        );
-        if (!economyProvider.deposit(player.getUUID(), payout, "job_salary_claim")) {
-            AdvancedJobsMod.LOGGER.warn(
-                "AdvancedJobs salary claim deposit failed: player={} provider={} currency={} net={}",
-                player.getGameProfile().getName(),
-                economyProvider.id(),
-                ConfigManager.economy().externalCurrencyId(),
-                payout
-            );
-            claimedPerJob.forEach((jobId, amount) -> profile.progress(jobId).restorePendingSalary(amount));
-            return 0.0D;
-        }
-        AdvancedJobsMod.LOGGER.info(
-            "AdvancedJobs salary claim deposit ok: player={} provider={} currency={} net={}",
-            player.getGameProfile().getName(),
-            economyProvider.id(),
-            ConfigManager.economy().externalCurrencyId(),
-            payout
-        );
-        routeTaxToServerAccount(taxAmount, "job_salary_claim_tax");
-        profile.setLastSalaryClaimEpochSecond(TimeUtil.now());
-        profile.markDirty();
-        saveProfile(profile);
-        syncToPlayer(player);
-        DebugLog.log("Salary claim: player=" + player.getGameProfile().getName() + " jobs=" + assignedJobs + " paid=" + payout);
-        return payout;
+        return salaryService.claimSalary(player, profile, assignedJobIds(profile), economyProvider, this::saveProfile, this::syncToPlayer);
     }
 
     public long salaryClaimCooldownRemaining(PlayerJobProfile profile) {
-        return Math.max(0L, ConfigManager.COMMON.salaryClaimIntervalSeconds.get() - (TimeUtil.now() - profile.lastSalaryClaimEpochSecond()));
+        return salaryService.salaryClaimCooldownRemaining(profile);
     }
 
     public long contractRerollCooldownRemaining(PlayerJobProfile profile) {
@@ -481,81 +419,6 @@ public class JobManager {
             return ContractRerollResult.INSUFFICIENT_FUNDS;
         }
         return ContractRerollResult.SUCCESS;
-    }
-
-    private void creditSalary(ServerPlayer player, PlayerJobProfile profile, String jobId, double grossSalary, String reason) {
-        double safeGross = Math.max(0.0D, grossSalary);
-        if (safeGross <= 0.0D) {
-            return;
-        }
-        if (!ConfigManager.COMMON.instantSalary.get()) {
-            progressService.addSalary(profile, jobId, safeGross);
-            return;
-        }
-        double taxAmount = safeGross * ConfigManager.COMMON.salaryTaxRate.get();
-        double netPayout = Math.max(0.0D, safeGross - taxAmount);
-        AdvancedJobsMod.LOGGER.info(
-            "AdvancedJobs instant salary requested: player={} job={} provider={} currency={} gross={} tax={} net={} reason={}",
-            player.getGameProfile().getName(),
-            jobId,
-            economyProvider.id(),
-            ConfigManager.economy().externalCurrencyId(),
-            safeGross,
-            taxAmount,
-            netPayout,
-            reason
-        );
-        if (economyProvider.deposit(profile.playerId(), netPayout, reason)) {
-            AdvancedJobsMod.LOGGER.info(
-                "AdvancedJobs instant salary deposit ok: player={} job={} provider={} currency={} net={} reason={}",
-                player.getGameProfile().getName(),
-                jobId,
-                economyProvider.id(),
-                ConfigManager.economy().externalCurrencyId(),
-                netPayout,
-                reason
-            );
-            routeTaxToServerAccount(taxAmount, reason + "_tax");
-            progressService.addEarnedSalary(profile, jobId, safeGross);
-            DebugLog.log("Instant salary: player=" + player.getGameProfile().getName()
-                + " job=" + jobId
-                + " gross=" + safeGross
-                + " net=" + netPayout
-                + " reason=" + reason);
-            return;
-        }
-        AdvancedJobsMod.LOGGER.warn(
-            "AdvancedJobs instant salary deposit failed: player={} job={} provider={} currency={} net={} reason={}",
-            player.getGameProfile().getName(),
-            jobId,
-            economyProvider.id(),
-            ConfigManager.economy().externalCurrencyId(),
-            netPayout,
-            reason
-        );
-        progressService.addSalary(profile, jobId, safeGross);
-        DebugLog.log("Instant salary fallback to pending: player=" + player.getGameProfile().getName()
-            + " job=" + jobId
-            + " gross=" + safeGross
-            + " reason=" + reason);
-    }
-
-    private void routeTaxToServerAccount(double taxAmount, String reason) {
-        if (taxAmount <= 0.0D) {
-            return;
-        }
-        UUID sinkId = ConfigManager.economy().taxSinkAccountId();
-        if (sinkId == null) {
-            AdvancedJobsMod.LOGGER.warn("Skipping tax routing due to invalid taxSinkAccountUuid");
-            return;
-        }
-        if (!economyProvider.deposit(sinkId, taxAmount, reason)) {
-            AdvancedJobsMod.LOGGER.warn("Failed to route tax to server account: account={} amount={} reason={}",
-                sinkId, taxAmount, reason);
-            return;
-        }
-        AdvancedJobsMod.LOGGER.info("AdvancedJobs tax routed: account={} provider={} currency={} amount={} reason={}",
-            sinkId, economyProvider.id(), ConfigManager.economy().externalCurrencyId(), taxAmount, reason);
     }
 
     public boolean unlockSkill(ServerPlayer player, String jobId, String nodeId) {
@@ -1238,7 +1101,7 @@ public class JobManager {
                     boolean wasComplete = task.completed();
                     task.addProgress(1);
                     if (!wasComplete && task.completed()) {
-                        creditSalary(player, profile, jobId, template.salary(), "daily_task");
+                        salaryService.creditSalary(player, profile, jobId, template.salary(), "daily_task", economyProvider);
                         progress.addXp(template.xp());
                         grantTaskExtras(player, template.bonusItem(), template.bonusCount(),
                             template.buffEffect(), template.buffDurationSeconds(), template.buffAmplifier());
@@ -1263,7 +1126,7 @@ public class JobManager {
                     boolean wasComplete = contract.completed();
                     contract.addProgress(1);
                     if (!wasComplete && contract.completed()) {
-                        creditSalary(player, profile, jobId, template.salary(), "job_contract");
+                        salaryService.creditSalary(player, profile, jobId, template.salary(), "job_contract", economyProvider);
                         progress.addXp(template.xp());
                         grantTaskExtras(player, template.bonusItem(), template.bonusCount(),
                             template.buffEffect(), template.buffDurationSeconds(), template.buffAmplifier());
