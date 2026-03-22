@@ -8,11 +8,11 @@
 
 ## Server Installation
 
-1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.0.jar`.
+1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.3.jar`.
 2. Put the jar into the server `mods` folder.
 3. Start the server once.
 4. Stop the server.
-5. Review generated files in `config/advancedjobs/`.
+5. Review generated files in `config/ZAdvancedJobs/`.
 6. Start the server again after editing config files.
 
 ## First Boot Output
@@ -32,7 +32,7 @@ On first launch the mod creates:
 All of them are written under:
 
 ```text
-config/advancedjobs/
+config/ZAdvancedJobs/
 ```
 
 ## Optional Client Mods
@@ -49,7 +49,7 @@ They are optional and not required for jobs, salary, skills, or NPC hub features
 To route salary and payments through `Z_Economy`:
 
 1. Install `Z_Economy` on the same server.
-2. Open `config/advancedjobs/economy.json`.
+2. Open `config/ZAdvancedJobs/economy.json`.
 3. Set:
    - `"provider": "external"`
    - `"externalCurrency": "z_coin"`
@@ -91,5 +91,13 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 Artifact:
 
 ```text
-build/libs/advancedjobs-1.0.0.jar
+build/libs/advancedjobs-1.0.3.jar
 ```
+
+Optional integrations are discovered automatically during build if their jars are found in:
+
+- `mods/`
+- `run/mods/`
+- `../mods/`
+
+Detection is done by Forge mod metadata inside the jar, with filename-prefix matching only as fallback.

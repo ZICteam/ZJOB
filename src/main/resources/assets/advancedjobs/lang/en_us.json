@@ -1208,7 +1208,7 @@
   "command.advancedjobs.admin.npcskin.list.header": "NPC skin sources:",
   "command.advancedjobs.admin.npcskin.list.line": "%s | %s | %s | %s | file %s | label \"%s\"",
   "command.advancedjobs.admin.npcskin.files.header": "Local NPC skin files:",
-  "command.advancedjobs.admin.npcskin.files.empty": "No local PNG skins found in config/advancedjobs/npc_skins",
+  "command.advancedjobs.admin.npcskin.files.empty": "No local PNG skins found in config/ZAdvancedJobs/npc_skins",
   "command.advancedjobs.admin.npcskin.files.line": "- %s",
   "command.advancedjobs.admin.npcskin.copy": "Copied skin source from %s to %s (%s | %s)",
   "command.advancedjobs.admin.npcskin.setall.online": "Updated all NPC skin sources to online (%s)",

@@ -3,7 +3,7 @@
 All generated configuration files are stored in:
 
 ```text
-config/advancedjobs/
+config/ZAdvancedJobs/
 ```
 
 ## File Map

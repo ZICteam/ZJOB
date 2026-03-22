@@ -54,16 +54,74 @@ minecraft {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 sourceSets.main.java.srcDir 'src/zeconomyApiStub/java'
 
+def optionalModDirs = [
+    file('mods'),
+    file('run/mods'),
+    file('../mods')
+]
+
+def jarContainsModId = { jarFile, modId ->
+    if (jarFile == null || !jarFile.exists()) {
+        return false
+    }
+    java.util.jar.JarFile jar = null
+    try {
+        jar = new java.util.jar.JarFile(jarFile)
+        def entry = jar.getJarEntry('META-INF/mods.toml')
+        if (entry == null) {
+            return false
+        }
+        def text = jar.getInputStream(entry).getText('UTF-8')
+        return text.contains("modId=\"${modId}\"") || text.contains("modId = \"${modId}\"")
+    } catch (Exception ignored) {
+        return false
+    } finally {
+        jar?.close()
+    }
+}
+
+def findOptionalJar = { modIds, prefixes ->
+    optionalModDirs.findResults { dir ->
+        if (!dir.exists() || !dir.isDirectory()) {
+            return null
+        }
+        def matches = dir.listFiles()?.findAll { file ->
+            file.isFile() && file.name.toLowerCase(Locale.ROOT).endsWith('.jar') && (
+                modIds.any { modId -> jarContainsModId(file, modId) } ||
+                    prefixes.any { prefix -> file.name.toLowerCase(Locale.ROOT).startsWith(prefix) }
+            )
+        }?.sort { it.name }
+        return matches ? matches.last() : null
+    }?.find { it != null }
+}
+
+def jeiJar = findOptionalJar(['jei'], ['jei-'])
+def journeyMapJar = findOptionalJar(['journeymap'], ['journeymap-', 'journeymapneoforge-'])
+
 repositories {
-    flatDir {
-        dirs 'Z:/My_mods/Client/mods'
+    optionalModDirs.findAll { it.exists() && it.isDirectory() }.each { dir ->
+        flatDir {
+            dirs dir
+        }
     }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-    compileOnly files('Z:/My_mods/Client/mods/jei-1.20.1-forge-15.20.0.129.jar')
-    compileOnly files('Z:/My_mods/Client/mods/journeymap-1.20.1-5.10.3-forge.jar')
+    if (jeiJar != null && jeiJar.exists()) {
+        compileOnly files(jeiJar)
+    }
+    if (journeyMapJar != null && journeyMapJar.exists()) {
+        compileOnly files(journeyMapJar)
+    }
+}
+
+if (jeiJar == null || !jeiJar.exists()) {
+    sourceSets.main.java.exclude 'com/example/advancedjobs/integration/jei/**'
+}
+
+if (journeyMapJar == null || !journeyMapJar.exists()) {
+    sourceSets.main.java.exclude 'com/example/advancedjobs/integration/journeymap/**'
 }
 
 tasks.named('processResources', ProcessResources).configure {

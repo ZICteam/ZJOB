@@ -48,16 +48,16 @@
 
 ## Quick Start
 
-1. Build the mod or take `build/libs/advancedjobs-1.0.0.jar`.
+1. Build the mod or take `build/libs/advancedjobs-1.0.3.jar`.
 2. Put the jar into the server `mods` directory.
 3. Start the server once so configs are generated.
-4. Review `config/advancedjobs/`.
+4. Review `config/ZAdvancedJobs/`.
 5. Restart the server after changing config files.
 
 External economy setup:
 
 1. Install `Z_Economy` on the same server.
-2. Set `"provider": "external"` in `config/advancedjobs/economy.json`.
+2. Set `"provider": "external"` in `config/ZAdvancedJobs/economy.json`.
 3. Set `"externalCurrency": "z_coin"`.
 
 Minimal `economy.json` example:
@@ -78,25 +78,31 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\gradlew.bat build
 ```
 
+Optional client integrations:
+
+- JEI support is compiled automatically if a nearby jar is identified as JEI through Forge mod metadata, with filename prefix matching kept as fallback
+- JourneyMap support is compiled automatically if a nearby jar is identified as JourneyMap through Forge mod metadata, with filename prefix matching kept as fallback
+- if these jars are absent, the core mod still builds without the optional integration classes
+
 Output:
 
 ```text
-build/libs/advancedjobs-1.0.0.jar
+build/libs/advancedjobs-1.0.3.jar
 ```
 
 ## Generated Config Files
 
 After first start the mod generates:
 
-- `config/advancedjobs/common.json`
-- `config/advancedjobs/jobs.json`
-- `config/advancedjobs/perks.json`
-- `config/advancedjobs/daily_tasks.json`
-- `config/advancedjobs/contracts.json`
-- `config/advancedjobs/economy.json`
-- `config/advancedjobs/client.json`
-- `config/advancedjobs/npc_skins.json`
-- `config/advancedjobs/npc_labels.json`
+- `config/ZAdvancedJobs/common.json`
+- `config/ZAdvancedJobs/jobs.json`
+- `config/ZAdvancedJobs/perks.json`
+- `config/ZAdvancedJobs/daily_tasks.json`
+- `config/ZAdvancedJobs/contracts.json`
+- `config/ZAdvancedJobs/economy.json`
+- `config/ZAdvancedJobs/client.json`
+- `config/ZAdvancedJobs/npc_skins.json`
+- `config/ZAdvancedJobs/npc_labels.json`
 
 ## Main Commands
 

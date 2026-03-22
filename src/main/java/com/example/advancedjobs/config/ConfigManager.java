@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -38,6 +39,8 @@ public final class ConfigManager {
     public static final ClientConfig CLIENT;
     public static final ForgeConfigSpec COMMON_SPEC;
     public static final ForgeConfigSpec CLIENT_SPEC;
+    private static final String CONFIG_DIR_NAME = "ZAdvancedJobs";
+    private static final String LEGACY_CONFIG_DIR_NAME = "advancedjobs";
 
     private static JobsConfigLoader jobsConfig;
     private static PerksConfigLoader perksConfig;
@@ -65,7 +68,7 @@ public final class ConfigManager {
     }
 
     public static void reloadJsonConfigs() {
-        Path root = FMLPaths.CONFIGDIR.get().resolve("advancedjobs");
+        Path root = resolveConfigRoot();
         try {
             Files.createDirectories(root);
         } catch (IOException e) {
@@ -91,9 +94,53 @@ public final class ConfigManager {
     public static NpcLabelsConfig npcLabels() { return npcLabelsConfig; }
 
     public static void saveEconomyConfig() {
-        Path root = FMLPaths.CONFIGDIR.get().resolve("advancedjobs");
+        Path root = resolveConfigRoot();
         economyConfig.save(root.resolve("economy.json"));
         writeCommonJson(root.resolve("common.json"));
+    }
+
+    private static Path resolveConfigRoot() {
+        Path configDir = FMLPaths.CONFIGDIR.get();
+        Path root = configDir.resolve(CONFIG_DIR_NAME);
+        Path legacyRoot = configDir.resolve(LEGACY_CONFIG_DIR_NAME);
+        migrateLegacyConfigDirectory(legacyRoot, root);
+        return root;
+    }
+
+    private static void migrateLegacyConfigDirectory(Path legacyRoot, Path root) {
+        if (!Files.exists(legacyRoot) || Files.exists(root)) {
+            return;
+        }
+        try {
+            Files.move(legacyRoot, root, StandardCopyOption.ATOMIC_MOVE);
+            AdvancedJobsMod.LOGGER.info("Migrated config directory from {} to {}", legacyRoot, root);
+            return;
+        } catch (IOException ignored) {
+        }
+
+        try {
+            Files.createDirectories(root);
+            try (var paths = Files.walk(legacyRoot)) {
+                paths.forEach(source -> copyLegacyPath(source, legacyRoot, root));
+            }
+            AdvancedJobsMod.LOGGER.info("Copied legacy config directory from {} to {}", legacyRoot, root);
+        } catch (IOException e) {
+            AdvancedJobsMod.LOGGER.error("Failed to migrate legacy config directory from {} to {}", legacyRoot, root, e);
+        }
+    }
+
+    private static void copyLegacyPath(Path source, Path legacyRoot, Path root) {
+        try {
+            Path relative = legacyRoot.relativize(source);
+            Path target = root.resolve(relative);
+            if (Files.isDirectory(source)) {
+                Files.createDirectories(target);
+            } else if (!Files.exists(target)) {
+                Files.copy(source, target);
+            }
+        } catch (IOException e) {
+            AdvancedJobsMod.LOGGER.error("Failed to copy legacy config path {}", source, e);
+        }
     }
 
     public static LocalTime dailyResetTime() {

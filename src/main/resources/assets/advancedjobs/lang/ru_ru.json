@@ -1205,7 +1205,7 @@
   "command.advancedjobs.admin.npcskin.list.header": "Источники скинов NPC:",
   "command.advancedjobs.admin.npcskin.list.line": "%s | %s | %s | %s | файл %s | этикетка \"%s\"",
   "command.advancedjobs.admin.npcskin.files.header": "Файлы скинов локальных NPC:",
-  "command.advancedjobs.admin.npcskin.files.empty": "В конфигурации /advancedjobs/npc_skins не ​​найдено локальных PNG-скинов.",
+  "command.advancedjobs.admin.npcskin.files.empty": "В config/ZAdvancedJobs/npc_skins не найдено локальных PNG-скинов.",
   "command.advancedjobs.admin.npcskin.files.line": "* %s",
   "command.advancedjobs.admin.npcskin.copy": "Скопирован исходный код скина из %s в %s (%s | %s)",
   "command.advancedjobs.admin.npcskin.setall.online": "Все источники скинов NPC обновлены до онлайн-версии (%s).",

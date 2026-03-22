@@ -30,7 +30,7 @@ That means salary claim, tax routing, job change cost, and reroll cost can all f
 
 ## Config
 
-Use `config/advancedjobs/economy.json`:
+Use `config/ZAdvancedJobs/economy.json`:
 
 ```json
 {
