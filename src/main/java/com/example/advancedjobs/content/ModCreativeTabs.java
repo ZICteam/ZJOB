@@ -2,6 +2,8 @@ package com.example.advancedjobs.content;
 
 import com.example.advancedjobs.AdvancedJobsMod;
 import com.example.advancedjobs.util.ResourceLocationUtil;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -22,6 +24,10 @@ public final class ModCreativeTabs {
         return String.valueOf(key).contains("minecraft:creative_mode_tab");
     }
 
+    private static ResourceKey<Registry<CreativeModeTab>> creativeTabRegistryKey() {
+        return ResourceKey.createRegistryKey(CREATIVE_TAB_REGISTRY);
+    }
+
     private static CreativeModeTab createMainTab() {
         return CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.advancedjobs.main"))
@@ -37,7 +43,7 @@ public final class ModCreativeTabs {
         if (!isCreativeTabRegistry(event.getRegistryKey())) {
             return;
         }
-        event.register((net.minecraft.resources.ResourceKey<? extends net.minecraft.core.Registry<CreativeModeTab>>) event.getRegistryKey(),
+        event.register(creativeTabRegistryKey(),
             helper -> helper.register(MAIN_ID, createMainTab()));
     }
 

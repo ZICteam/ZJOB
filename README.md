@@ -48,7 +48,7 @@
 
 ## Quick Start
 
-1. Build the mod or take `build/libs/advancedjobs-1.0.7.jar`.
+1. Build the mod or take `build/libs/advancedjobs-1.0.8.jar`.
 2. Put the jar into the server `mods` directory.
 3. Start the server once so configs are generated.
 4. Review `config/ZAdvancedJobs/`.
@@ -87,7 +87,7 @@ Optional client integrations:
 Output:
 
 ```text
-build/libs/advancedjobs-1.0.7.jar
+build/libs/advancedjobs-1.0.8.jar
 ```
 
 ## Generated Config Files

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.8
+
+Maintenance update.
+
+Highlights:
+
+- removed the remaining unchecked cast warning from creative tab registration
+- kept the Forge `47.4.18` build warning-free apart from standard Gradle notes
+- synchronized version references for the clean-build release
+
 ## 1.0.7
 
 Maintenance update.
