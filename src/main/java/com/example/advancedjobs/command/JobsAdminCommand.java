@@ -3,6 +3,7 @@ package com.example.advancedjobs.command;
 import com.example.advancedjobs.AdvancedJobsMod;
 import com.example.advancedjobs.content.ModEntities;
 import com.example.advancedjobs.config.ConfigManager;
+import com.example.advancedjobs.economy.ExternalEconomyBridge;
 import com.example.advancedjobs.entity.NpcRole;
 import com.example.advancedjobs.entity.RoleBasedNpc;
 import com.example.advancedjobs.util.DebugLog;
@@ -27,6 +28,9 @@ public final class JobsAdminCommand {
     private static final SuggestionProvider<CommandSourceStack> NPC_LOCAL_FILE_SUGGESTIONS =
         (context, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
             ConfigManager.npcSkins().localSkinFiles(), builder);
+    private static final SuggestionProvider<CommandSourceStack> JOB_SUGGESTIONS =
+        (context, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+            ConfigManager.jobs().definitions().keySet(), builder);
 
     private JobsAdminCommand() {
     }
@@ -35,6 +39,10 @@ public final class JobsAdminCommand {
         dispatcher.register(Commands.literal("jobsadmin")
             .requires(src -> src.hasPermission(2))
             .then(Commands.literal("help").executes(ctx -> help(ctx.getSource())))
+            .then(Commands.literal("health").executes(ctx -> health(ctx.getSource())))
+            .then(Commands.literal("perfcheck").executes(ctx -> perfCheck(ctx.getSource())))
+            .then(Commands.literal("economycheck").executes(ctx -> economyCheck(ctx.getSource())))
+            .then(Commands.literal("readycheck").executes(ctx -> readyCheck(ctx.getSource())))
             .then(Commands.literal("status").executes(ctx -> status(ctx.getSource())))
             .then(Commands.literal("reload").executes(ctx -> reload(ctx.getSource())))
             .then(Commands.literal("spawnhub").executes(ctx -> spawnHub(ctx.getSource())))
@@ -185,6 +193,22 @@ public final class JobsAdminCommand {
             .then(Commands.literal("reset")
                 .then(Commands.argument("player", EntityArgument.player())
                     .executes(ctx -> reset(EntityArgument.getPlayer(ctx, "player")))))
+            .then(Commands.literal("payoutcheck")
+                .then(Commands.argument("player", EntityArgument.player())
+                    .executes(ctx -> payoutCheck(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
+            .then(Commands.literal("balancecheck")
+                .then(Commands.argument("player", EntityArgument.player())
+                    .executes(ctx -> balanceCheck(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
+            .then(Commands.literal("balanceoverview")
+                .executes(ctx -> balanceOverview(ctx.getSource())))
+            .then(Commands.literal("balancejobs")
+                .executes(ctx -> balanceJobs(ctx.getSource())))
+            .then(Commands.literal("balancejob")
+                .then(Commands.argument("job", StringArgumentType.word()).suggests(JOB_SUGGESTIONS)
+                    .executes(ctx -> balanceJob(ctx.getSource(), StringArgumentType.getString(ctx, "job")))))
+            .then(Commands.literal("balanceprogress")
+                .then(Commands.argument("job", StringArgumentType.word()).suggests(JOB_SUGGESTIONS)
+                    .executes(ctx -> balanceProgress(ctx.getSource(), StringArgumentType.getString(ctx, "job")))))
             .then(Commands.literal("setjob")
                 .then(Commands.argument("player", EntityArgument.player())
                     .then(Commands.argument("job", StringArgumentType.word())
@@ -245,13 +269,23 @@ public final class JobsAdminCommand {
 
     private static int reload(CommandSourceStack source) {
         AdvancedJobsMod.get().jobManager().reload();
-        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.reload"), true);
+        var manager = AdvancedJobsMod.get().jobManager();
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.reload",
+            manager.economy().id(),
+            manager.profileCacheSize(),
+            manager.jobCount(),
+            manager.rewardIndexEntryCount()), true);
         return 1;
     }
 
     private static int help(CommandSourceStack source) {
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.header"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.health"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.perfcheck"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.economycheck"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.readycheck"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.status"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.recovery"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.hub"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.exporthub"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.previewhub"), false);
@@ -273,16 +307,177 @@ public final class JobsAdminCommand {
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.warmcaches"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.clearcaches"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.profile"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.payoutcheck"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.balancecheck"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.balanceoverview"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.balancejobs"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.balancejob"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.balanceprogress"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.debug"), false);
         return 1;
+    }
+
+    private static int health(CommandSourceStack source) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        var antiExploit = AdvancedJobsMod.get().jobEventHandler().antiExploit();
+        boolean eventActive = Double.compare(ConfigManager.economy().eventMultiplier(), 1.0D) != 0
+            && ConfigManager.economy().eventEndsAtEpochSecond() > com.example.advancedjobs.util.TimeUtil.now();
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.health.header"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.health.summary",
+            source.getServer().getPlayerList().getPlayerCount(),
+            manager.profileCacheSize(),
+            manager.jobCount(),
+            manager.rewardIndexEntryCount(),
+            yesNo(DebugLog.enabled())), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.health.economy",
+            ConfigManager.economy().providerId(),
+            manager.economy().id(),
+            ConfigManager.economy().externalCurrencyId(),
+            ConfigManager.economy().taxSinkAccountUuid()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.health.event",
+            yesNo(eventActive),
+            TextUtil.fmt2(ConfigManager.economy().eventMultiplier()),
+            com.example.advancedjobs.util.TimeUtil.formatRemainingSeconds(Math.max(0L,
+                ConfigManager.economy().eventEndsAtEpochSecond() - com.example.advancedjobs.util.TimeUtil.now()))), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.health.caches",
+            yesNo(manager.isCatalogPayloadCached()),
+            manager.catalogPayloadSize(),
+            manager.leaderboardCacheCount(),
+            yesNo(manager.isOverallLeaderboardCached()),
+            ConfigManager.npcSkins().cachedLocalSkinFileCount(),
+            ConfigManager.npcSkins().cachedBase64EntryCount()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.health.runtime",
+            antiExploit.trackedPlacedBlocks(),
+            antiExploit.trackedRepeatedActions(),
+            antiExploit.trackedExploredChunks(),
+            antiExploit.trackedLootContainers(),
+            antiExploit.trackedArtificialEntities()), false);
+        return 1;
+    }
+
+    private static int economyCheck(CommandSourceStack source) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        var externalBridge = new ExternalEconomyBridge();
+        boolean externalConfigured = "external".equalsIgnoreCase(ConfigManager.economy().providerId());
+        boolean activeExternal = "external".equalsIgnoreCase(manager.economy().id());
+        boolean bridgeAvailable = externalBridge.isAvailable();
+        boolean sinkValid = ConfigManager.economy().taxSinkAccountId() != null;
+        boolean currencyConfigured = ConfigManager.economy().externalCurrencyId() != null
+            && !ConfigManager.economy().externalCurrencyId().isBlank();
+        boolean releaseReady = !externalConfigured || (activeExternal && bridgeAvailable && sinkValid && currencyConfigured);
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.header"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.provider",
+            readyState(!externalConfigured || activeExternal),
+            ConfigManager.economy().providerId(),
+            manager.economy().id()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.bridge",
+            readyState(!externalConfigured || bridgeAvailable),
+            yesNo(bridgeAvailable),
+            yesNo(externalConfigured)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.currency",
+            readyState(currencyConfigured),
+            ConfigManager.economy().externalCurrencyId()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.taxsink",
+            readyState(sinkValid),
+            ConfigManager.economy().taxSinkAccountUuid()), false);
+        source.sendSuccess(() -> TextUtil.tr(releaseReady
+            ? "command.advancedjobs.admin.economycheck.summary.ready"
+            : "command.advancedjobs.admin.economycheck.summary.warn"), false);
+        if (externalConfigured && !activeExternal) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.advice.provider"), false);
+        }
+        if (externalConfigured && !bridgeAvailable) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.advice.bridge"), false);
+        }
+        if (!currencyConfigured) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.advice.currency"), false);
+        }
+        if (!sinkValid) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.economycheck.advice.taxsink"), false);
+        }
+        return releaseReady ? 1 : 0;
+    }
+
+    private static int perfCheck(CommandSourceStack source) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        var antiExploit = AdvancedJobsMod.get().jobEventHandler().antiExploit();
+        int onlinePlayers = source.getServer().getPlayerList().getPlayerCount();
+        boolean cachesWarm = manager.isCatalogPayloadCached()
+            && manager.leaderboardCacheCount() > 0
+            && manager.isOverallLeaderboardCached();
+        boolean rewardIndexReady = manager.jobCount() > 0 && manager.rewardIndexEntryCount() > 0;
+        boolean npcSkinCachesReady = ConfigManager.npcSkins().cachedLocalSkinFileCount() > 0
+            || ConfigManager.npcSkins().cachedBase64EntryCount() > 0;
+        boolean eventActive = Double.compare(ConfigManager.economy().eventMultiplier(), 1.0D) != 0
+            && ConfigManager.economy().eventEndsAtEpochSecond() > com.example.advancedjobs.util.TimeUtil.now();
+        boolean debugEnabled = DebugLog.enabled();
+        boolean trackerBusy = antiExploit.trackedRepeatedActions() > 0
+            || antiExploit.trackedLootContainers() > 0
+            || antiExploit.trackedExploredChunks() > 0;
+        boolean perfReady = cachesWarm && rewardIndexReady && !eventActive && !debugEnabled;
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.header"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.runtime",
+            onlinePlayers,
+            manager.profileCacheSize(),
+            manager.jobCount(),
+            manager.rewardIndexEntryCount()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.caches",
+            readyState(cachesWarm),
+            yesNo(manager.isCatalogPayloadCached()),
+            manager.catalogPayloadSize(),
+            manager.leaderboardCacheCount(),
+            yesNo(manager.isOverallLeaderboardCached())), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.visual",
+            npcSkinCachesReady ? TextUtil.tr("command.advancedjobs.common.ready") : TextUtil.tr("command.advancedjobs.common.warn"),
+            ConfigManager.npcSkins().cachedLocalSkinFileCount(),
+            ConfigManager.npcSkins().cachedBase64EntryCount()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.flags",
+            readyState(!eventActive && !debugEnabled),
+            yesNo(eventActive),
+            yesNo(debugEnabled),
+            yesNo(trackerBusy)), false);
+        source.sendSuccess(() -> TextUtil.tr(perfReady
+            ? "command.advancedjobs.admin.perfcheck.summary.ready"
+            : "command.advancedjobs.admin.perfcheck.summary.warn"), false);
+        if (!cachesWarm) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.advice.caches"), false);
+        }
+        if (!rewardIndexReady) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.advice.reward_index"), false);
+        }
+        if (!npcSkinCachesReady) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.advice.visual"), false);
+        }
+        if (eventActive || debugEnabled) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.advice.runtime"), false);
+        }
+        if (trackerBusy) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.perfcheck.advice.trackers"), false);
+        }
+        return perfReady ? 1 : 0;
     }
 
     private static int status(CommandSourceStack source) {
         var manager = AdvancedJobsMod.get().jobManager();
         var antiExploit = AdvancedJobsMod.get().jobEventHandler().antiExploit();
+        boolean economyMismatch = !ConfigManager.economy().providerId().equalsIgnoreCase(manager.economy().id());
+        boolean cachesCold = !manager.isCatalogPayloadCached() || manager.leaderboardCacheCount() == 0 || !manager.isOverallLeaderboardCached();
+        boolean rewardIndexCold = manager.rewardIndexEntryCount() == 0 || manager.jobCount() == 0;
+        boolean npcSkinCachesEmpty = ConfigManager.npcSkins().cachedLocalSkinFileCount() == 0
+            && ConfigManager.npcSkins().cachedBase64EntryCount() == 0;
+        boolean eventActive = Double.compare(ConfigManager.economy().eventMultiplier(), 1.0D) != 0
+            && ConfigManager.economy().eventEndsAtEpochSecond() > com.example.advancedjobs.util.TimeUtil.now();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.header"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.summary",
+            source.getServer().getPlayerList().getPlayerCount(),
+            yesNo(DebugLog.enabled()),
+            manager.profileCacheSize(),
+            manager.jobCount()), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.economy",
             ConfigManager.economy().providerId(),
+            manager.economy().id(),
             ConfigManager.economy().externalCurrencyId(),
             ConfigManager.economy().taxSinkAccountUuid()), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.event",
@@ -304,18 +499,589 @@ public final class JobsAdminCommand {
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.caches",
             manager.profileCacheSize(),
             yesNo(manager.isCatalogPayloadCached()),
+            manager.catalogPayloadSize(),
             manager.leaderboardCacheCount(),
             yesNo(manager.isOverallLeaderboardCached()),
+            ConfigManager.npcSkins().cachedLocalSkinFileCount(),
             ConfigManager.npcSkins().cachedBase64EntryCount()), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.reward_index",
             manager.jobCount(),
             manager.rewardIndexEntryCount()), false);
+        if (economyMismatch) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.advice.economy",
+                ConfigManager.economy().providerId(),
+                manager.economy().id()), false);
+        }
+        if (cachesCold) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.advice.caches"), false);
+        }
+        if (eventActive) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.advice.event",
+                TextUtil.fmt2(ConfigManager.economy().eventMultiplier()),
+                com.example.advancedjobs.util.TimeUtil.formatRemainingSeconds(Math.max(0L,
+                    ConfigManager.economy().eventEndsAtEpochSecond() - com.example.advancedjobs.util.TimeUtil.now()))), false);
+        }
+        if (antiExploit.trackedRepeatedActions() > 0 || antiExploit.trackedLootContainers() > 0 || antiExploit.trackedExploredChunks() > 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.advice.antiabuse"), false);
+        }
+        if (rewardIndexCold) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.advice.reward_index"), false);
+        }
+        if (npcSkinCachesEmpty) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.status.advice.npc_skins"), false);
+        }
         return 1;
+    }
+
+    private static int readyCheck(CommandSourceStack source) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        boolean jobsLoaded = manager.jobCount() > 0 && manager.rewardIndexEntryCount() > 0;
+        boolean externalConfigured = "external".equalsIgnoreCase(ConfigManager.economy().providerId());
+        boolean economyReady = !externalConfigured || "external".equalsIgnoreCase(manager.economy().id());
+        boolean cachesReady = manager.isCatalogPayloadCached()
+            && manager.leaderboardCacheCount() > 0
+            && manager.isOverallLeaderboardCached();
+        boolean eventActive = Double.compare(ConfigManager.economy().eventMultiplier(), 1.0D) != 0
+            && ConfigManager.economy().eventEndsAtEpochSecond() > com.example.advancedjobs.util.TimeUtil.now();
+        boolean debugEnabled = DebugLog.enabled();
+        boolean npcSkinCachesEmpty = ConfigManager.npcSkins().cachedLocalSkinFileCount() == 0
+            && ConfigManager.npcSkins().cachedBase64EntryCount() == 0;
+        boolean releaseReady = jobsLoaded && economyReady && cachesReady && !eventActive && !debugEnabled;
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.header"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.jobs",
+            readyState(jobsLoaded),
+            manager.jobCount(),
+            manager.rewardIndexEntryCount()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.economy",
+            readyState(economyReady),
+            ConfigManager.economy().providerId(),
+            manager.economy().id()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.caches",
+            readyState(cachesReady),
+            yesNo(manager.isCatalogPayloadCached()),
+            manager.leaderboardCacheCount(),
+            yesNo(manager.isOverallLeaderboardCached())), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.visual",
+            npcSkinCachesEmpty ? TextUtil.tr("command.advancedjobs.common.warn") : TextUtil.tr("command.advancedjobs.common.ready"),
+            ConfigManager.npcSkins().cachedLocalSkinFileCount(),
+            ConfigManager.npcSkins().cachedBase64EntryCount()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.runtime",
+            readyState(!eventActive && !debugEnabled),
+            yesNo(eventActive),
+            yesNo(debugEnabled)), false);
+        source.sendSuccess(() -> TextUtil.tr(releaseReady
+            ? "command.advancedjobs.admin.readycheck.summary.ready"
+            : "command.advancedjobs.admin.readycheck.summary.warn"), false);
+        if (!jobsLoaded) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.advice.jobs"), false);
+        }
+        if (!economyReady) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.advice.economy"), false);
+        }
+        if (!cachesReady) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.advice.caches"), false);
+        }
+        if (npcSkinCachesEmpty) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.advice.visual"), false);
+        }
+        if (eventActive || debugEnabled) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.advice.runtime"), false);
+        }
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.readycheck.next"), false);
+        return releaseReady ? 1 : 0;
     }
 
     private static int reset(ServerPlayer player) {
         AdvancedJobsMod.get().jobManager().resetProfile(player);
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.admin.reset"));
+        return 1;
+    }
+
+    private static int payoutCheck(CommandSourceStack source, ServerPlayer player) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        var profile = manager.getOrCreateProfile(player);
+        var assignedJobs = assignedJobIds(profile);
+        long cooldownRemaining = manager.salaryClaimCooldownRemaining(profile);
+        double pendingTotal = assignedJobs.stream().mapToDouble(jobId -> profile.progress(jobId).pendingSalary()).sum();
+        double claimCap = Math.max(0.0D, ConfigManager.COMMON.maxSalaryPerClaim.get());
+        double grossPreview = Math.min(pendingTotal, claimCap);
+        double taxPreview = grossPreview * ConfigManager.COMMON.salaryTaxRate.get();
+        double netPreview = Math.max(0.0D, grossPreview - taxPreview);
+        boolean instantMode = ConfigManager.COMMON.instantSalary.get();
+        boolean hasAssignedJobs = !assignedJobs.isEmpty();
+        boolean hasPendingSalary = pendingTotal > 0.0D;
+        boolean cooldownActive = cooldownRemaining > 0L;
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.header",
+            player.getGameProfile().getName()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.summary",
+            instantMode ? TextUtil.tr("gui.advancedjobs.salary_mode.instant") : TextUtil.tr("gui.advancedjobs.salary_mode.manual"),
+            TextUtil.fmt2(pendingTotal),
+            TextUtil.fmt2(grossPreview),
+            TextUtil.fmt2(netPreview)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.rules",
+            TextUtil.fmt2(ConfigManager.COMMON.salaryTaxRate.get() * 100.0D),
+            TextUtil.fmt2(claimCap),
+            com.example.advancedjobs.util.TimeUtil.formatRemainingSeconds(cooldownRemaining)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.economy",
+            manager.economy().id(),
+            ConfigManager.economy().externalCurrencyId(),
+            ConfigManager.economy().taxSinkAccountUuid()), false);
+        if (assignedJobs.isEmpty()) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.slot.empty"), false);
+        } else {
+            for (String jobId : assignedJobs) {
+                source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.slot.line",
+                    jobId,
+                    TextUtil.fmt2(profile.progress(jobId).pendingSalary()),
+                    profile.progress(jobId).level(),
+                    TextUtil.fmt2(profile.progress(jobId).earnedTotal())), false);
+            }
+        }
+        if (instantMode) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.advice.instant"), false);
+            return 1;
+        }
+        if (!hasAssignedJobs) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.advice.no_jobs"), false);
+            return 0;
+        }
+        if (!hasPendingSalary) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.advice.empty"), false);
+            return 0;
+        }
+        if (cooldownActive) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.advice.cooldown",
+                com.example.advancedjobs.util.TimeUtil.formatRemainingSeconds(cooldownRemaining)), false);
+            return 0;
+        }
+        if (pendingTotal > claimCap) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.advice.cap",
+                TextUtil.fmt2(claimCap),
+                TextUtil.fmt2(pendingTotal - claimCap)), false);
+        } else {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.advice.ready"), false);
+        }
+        return 1;
+    }
+
+    private static int balanceCheck(CommandSourceStack source, ServerPlayer player) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        var profile = manager.getOrCreateProfile(player);
+        var assignedJobs = assignedJobIds(profile);
+        double totalEarned = assignedJobs.stream().mapToDouble(jobId -> profile.progress(jobId).earnedTotal()).sum();
+        double totalPending = assignedJobs.stream().mapToDouble(jobId -> profile.progress(jobId).pendingSalary()).sum();
+        int totalLevels = assignedJobs.stream().mapToInt(jobId -> profile.progress(jobId).level()).sum();
+        int totalDailies = assignedJobs.stream().mapToInt(jobId -> profile.progress(jobId).dailyTasks().size()).sum();
+        int totalContracts = assignedJobs.stream().mapToInt(jobId -> profile.progress(jobId).contracts().size()).sum();
+        long salaryCooldown = manager.salaryClaimCooldownRemaining(profile);
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.header",
+            player.getGameProfile().getName()), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.summary",
+            assignedJobs.size(),
+            totalLevels,
+            TextUtil.fmt2(totalEarned),
+            TextUtil.fmt2(totalPending)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.activity",
+            totalDailies,
+            totalContracts,
+            com.example.advancedjobs.util.TimeUtil.formatRemainingSeconds(salaryCooldown)), false);
+        if (assignedJobs.isEmpty()) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.slot.empty"), false);
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.advice.empty"), false);
+            return 0;
+        }
+        for (String jobId : assignedJobs) {
+            var progress = profile.progress(jobId);
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.slot.line",
+                jobId,
+                progress.level(),
+                TextUtil.fmt2(progress.xp()),
+                TextUtil.fmt2(progress.earnedTotal()),
+                TextUtil.fmt2(progress.pendingSalary()),
+                profile.availableSkillPoints(jobId),
+                progress.dailyTasks().size(),
+                progress.contracts().size()), false);
+        }
+        if (totalLevels <= 10 || totalEarned < 1_000.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.advice.early"), false);
+        } else if (totalLevels <= 40 || totalEarned < 10_000.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.advice.mid"), false);
+        } else {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.advice.late"), false);
+        }
+        if (totalPending > ConfigManager.COMMON.maxSalaryPerClaim.get()) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.advice.pending",
+                TextUtil.fmt2(ConfigManager.COMMON.maxSalaryPerClaim.get()),
+                TextUtil.fmt2(totalPending)), false);
+        }
+        if (totalContracts == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.advice.contracts"), false);
+        }
+        if (totalDailies == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancecheck.advice.dailies"), false);
+        }
+        return 1;
+    }
+
+    private static int balanceOverview(CommandSourceStack source) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        var profiles = manager.overallLeaderboard();
+        int profiledPlayers = profiles.size();
+        double totalEarned = 0.0D;
+        double totalPending = 0.0D;
+        int totalLevels = 0;
+        int activeDailies = 0;
+        int activeContracts = 0;
+        String topPlayer = "-";
+        double topEarned = 0.0D;
+
+        for (var profile : profiles) {
+            double earned = manager.totalEarnedAcrossJobs(profile);
+            totalEarned += earned;
+            totalLevels += manager.totalLevelsAcrossJobs(profile);
+            if (earned > topEarned) {
+                topEarned = earned;
+                topPlayer = profile.playerName();
+            }
+            for (String jobId : assignedJobIds(profile)) {
+                var progress = profile.progress(jobId);
+                totalPending += progress.pendingSalary();
+                activeDailies += progress.dailyTasks().size();
+                activeContracts += progress.contracts().size();
+            }
+        }
+
+        double avgEarned = profiledPlayers == 0 ? 0.0D : totalEarned / profiledPlayers;
+        double avgLevels = profiledPlayers == 0 ? 0.0D : (double) totalLevels / profiledPlayers;
+        double totalPendingSnapshot = totalPending;
+        int activeDailiesSnapshot = activeDailies;
+        int activeContractsSnapshot = activeContracts;
+        double totalEarnedSnapshot = totalEarned;
+        String topPlayerSnapshot = topPlayer;
+        double topEarnedSnapshot = topEarned;
+        double maxSalaryPerClaim = ConfigManager.COMMON.maxSalaryPerClaim.get();
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.header"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.summary",
+            profiledPlayers,
+            TextUtil.fmt2(avgLevels),
+            TextUtil.fmt2(avgEarned),
+            TextUtil.fmt2(totalPendingSnapshot)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.activity",
+            activeDailiesSnapshot,
+            activeContractsSnapshot,
+            TextUtil.fmt2(totalEarnedSnapshot)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.top",
+            topPlayerSnapshot,
+            TextUtil.fmt2(topEarnedSnapshot)), false);
+        if (profiledPlayers == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.advice.empty"), false);
+            return 0;
+        }
+        if (avgLevels <= 10.0D || avgEarned <= 1_000.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.advice.early"), false);
+        } else if (avgLevels <= 40.0D || avgEarned <= 10_000.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.advice.mid"), false);
+        } else {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.advice.late"), false);
+        }
+        if (totalPendingSnapshot > profiledPlayers * Math.max(1.0D, maxSalaryPerClaim)) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.advice.pending",
+                TextUtil.fmt2(totalPendingSnapshot),
+                TextUtil.fmt2(maxSalaryPerClaim)), false);
+        }
+        if (activeContractsSnapshot == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.advice.contracts"), false);
+        }
+        if (activeDailiesSnapshot == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceoverview.advice.dailies"), false);
+        }
+        return 1;
+    }
+
+    private static int balanceJobs(CommandSourceStack source) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        var profiles = manager.overallLeaderboard();
+        java.util.Map<String, BalanceJobStats> statsByJob = new java.util.LinkedHashMap<>();
+        int assignedSlots = 0;
+
+        for (var profile : profiles) {
+            for (String jobId : assignedJobIds(profile)) {
+                assignedSlots++;
+                var progress = profile.progress(jobId);
+                var stats = statsByJob.computeIfAbsent(jobId, ignored -> new BalanceJobStats());
+                stats.players++;
+                stats.totalLevels += progress.level();
+                stats.totalEarned += progress.earnedTotal();
+                stats.totalPending += progress.pendingSalary();
+                stats.activeDailies += progress.dailyTasks().size();
+                stats.activeContracts += progress.contracts().size();
+            }
+        }
+
+        java.util.List<java.util.Map.Entry<String, BalanceJobStats>> ranked = new java.util.ArrayList<>(statsByJob.entrySet());
+        ranked.sort(java.util.Map.Entry.<String, BalanceJobStats>comparingByValue(
+            java.util.Comparator.comparingInt((BalanceJobStats stats) -> stats.players).reversed()
+                .thenComparingDouble(stats -> stats.totalEarned).reversed()
+                .thenComparingInt(stats -> stats.totalLevels).reversed()));
+        int assignedSlotsSnapshot = assignedSlots;
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.header"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.summary",
+            profiles.size(),
+            assignedSlotsSnapshot,
+            ranked.size()), false);
+
+        if (ranked.isEmpty()) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.advice.empty"), false);
+            return 0;
+        }
+
+        int limit = Math.min(5, ranked.size());
+        for (int i = 0; i < limit; i++) {
+            int place = i + 1;
+            var entry = ranked.get(i);
+            String jobId = entry.getKey();
+            BalanceJobStats stats = entry.getValue();
+            double share = assignedSlotsSnapshot == 0 ? 0.0D : stats.players * 100.0D / assignedSlotsSnapshot;
+            double avgLevel = stats.players == 0 ? 0.0D : (double) stats.totalLevels / stats.players;
+            double avgEarned = stats.players == 0 ? 0.0D : stats.totalEarned / stats.players;
+            double avgPending = stats.players == 0 ? 0.0D : stats.totalPending / stats.players;
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.line",
+                place,
+                jobName(jobId),
+                stats.players,
+                TextUtil.fmt2(share),
+                TextUtil.fmt2(avgLevel),
+                TextUtil.fmt2(avgEarned),
+                TextUtil.fmt2(avgPending),
+                stats.activeDailies,
+                stats.activeContracts), false);
+        }
+
+        var topEntry = ranked.get(0);
+        double topShare = assignedSlotsSnapshot == 0 ? 0.0D : topEntry.getValue().players * 100.0D / assignedSlotsSnapshot;
+        double avgPendingTop = topEntry.getValue().players == 0 ? 0.0D : topEntry.getValue().totalPending / topEntry.getValue().players;
+        if (topShare >= 60.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.advice.dominant",
+                jobName(topEntry.getKey()),
+                TextUtil.fmt2(topShare)), false);
+        }
+        if (ranked.size() <= 2) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.advice.shallow"), false);
+        }
+        if (avgPendingTop > ConfigManager.COMMON.maxSalaryPerClaim.get()) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.advice.pending",
+                jobName(topEntry.getKey()),
+                TextUtil.fmt2(avgPendingTop),
+                TextUtil.fmt2(ConfigManager.COMMON.maxSalaryPerClaim.get())), false);
+        }
+        if (topEntry.getValue().activeContracts == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.advice.contracts",
+                jobName(topEntry.getKey())), false);
+        }
+        if (topEntry.getValue().activeDailies == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejobs.advice.dailies",
+                jobName(topEntry.getKey())), false);
+        }
+        return 1;
+    }
+
+    private static int balanceJob(CommandSourceStack source, String jobId) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        if (manager.job(jobId).isEmpty()) {
+            source.sendFailure(TextUtil.tr("command.advancedjobs.admin.balancejob.invalid", jobId));
+            return 0;
+        }
+
+        var profiles = manager.overallLeaderboard();
+        int profiledPlayers = profiles.size();
+        int assignedPlayers = 0;
+        int totalLevels = 0;
+        double totalEarned = 0.0D;
+        double totalPending = 0.0D;
+        int activeDailies = 0;
+        int activeContracts = 0;
+        String topPlayer = "-";
+        int topLevel = 0;
+        double topEarned = 0.0D;
+
+        for (var profile : profiles) {
+            if (!assignedJobIds(profile).contains(jobId)) {
+                continue;
+            }
+            assignedPlayers++;
+            var progress = profile.progress(jobId);
+            totalLevels += progress.level();
+            totalEarned += progress.earnedTotal();
+            totalPending += progress.pendingSalary();
+            activeDailies += progress.dailyTasks().size();
+            activeContracts += progress.contracts().size();
+            if (progress.earnedTotal() > topEarned
+                || (progress.earnedTotal() == topEarned && progress.level() > topLevel)) {
+                topPlayer = profile.playerName();
+                topLevel = progress.level();
+                topEarned = progress.earnedTotal();
+            }
+        }
+
+        double share = profiledPlayers == 0 ? 0.0D : assignedPlayers * 100.0D / profiledPlayers;
+        double avgLevel = assignedPlayers == 0 ? 0.0D : (double) totalLevels / assignedPlayers;
+        double avgEarned = assignedPlayers == 0 ? 0.0D : totalEarned / assignedPlayers;
+        double avgPending = assignedPlayers == 0 ? 0.0D : totalPending / assignedPlayers;
+        double maxSalaryPerClaim = ConfigManager.COMMON.maxSalaryPerClaim.get();
+        int assignedPlayersSnapshot = assignedPlayers;
+        int activeDailiesSnapshot = activeDailies;
+        int activeContractsSnapshot = activeContracts;
+        double totalEarnedSnapshot = totalEarned;
+        double totalPendingSnapshot = totalPending;
+        String topPlayerSnapshot = topPlayer;
+        int topLevelSnapshot = topLevel;
+        double topEarnedSnapshot = topEarned;
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.header", jobName(jobId)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.summary",
+            assignedPlayersSnapshot,
+            profiledPlayers,
+            TextUtil.fmt2(share),
+            TextUtil.fmt2(avgLevel),
+            TextUtil.fmt2(avgEarned),
+            TextUtil.fmt2(avgPending)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.activity",
+            activeDailiesSnapshot,
+            activeContractsSnapshot,
+            TextUtil.fmt2(totalEarnedSnapshot),
+            TextUtil.fmt2(totalPendingSnapshot)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.top",
+            topPlayerSnapshot,
+            topLevelSnapshot,
+            TextUtil.fmt2(topEarnedSnapshot)), false);
+
+        if (assignedPlayersSnapshot == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.advice.empty", jobName(jobId)), false);
+            return 0;
+        }
+        if (share <= 10.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.advice.low_share",
+                jobName(jobId),
+                TextUtil.fmt2(share)), false);
+        } else if (share >= 50.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.advice.high_share",
+                jobName(jobId),
+                TextUtil.fmt2(share)), false);
+        }
+        if (avgLevel <= 10.0D || avgEarned <= 1_000.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.advice.early", jobName(jobId)), false);
+        } else if (avgLevel >= 40.0D || avgEarned >= 10_000.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.advice.late", jobName(jobId)), false);
+        }
+        if (avgPending > maxSalaryPerClaim) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.advice.pending",
+                jobName(jobId),
+                TextUtil.fmt2(avgPending),
+                TextUtil.fmt2(maxSalaryPerClaim)), false);
+        }
+        if (activeContracts == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.advice.contracts", jobName(jobId)), false);
+        }
+        if (activeDailies == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balancejob.advice.dailies", jobName(jobId)), false);
+        }
+        return 1;
+    }
+
+    private static int balanceProgress(CommandSourceStack source, String jobId) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        if (manager.job(jobId).isEmpty()) {
+            source.sendFailure(TextUtil.tr("command.advancedjobs.admin.balanceprogress.invalid", jobId));
+            return 0;
+        }
+
+        var profiles = manager.overallLeaderboard();
+        int profiledPlayers = profiles.size();
+        int assignedPlayers = 0;
+        int totalLevels = 0;
+        int totalAvailableSkillPoints = 0;
+        int totalSpentSkillPoints = 0;
+        int totalUnlockedNodes = 0;
+        int totalUnlockedMilestones = 0;
+        String topPlayer = "-";
+        int topMilestones = 0;
+        int topLevel = 0;
+
+        for (var profile : profiles) {
+            if (!assignedJobIds(profile).contains(jobId)) {
+                continue;
+            }
+            assignedPlayers++;
+            var progress = profile.progress(jobId);
+            totalLevels += progress.level();
+            totalAvailableSkillPoints += profile.availableSkillPoints(jobId);
+            totalSpentSkillPoints += progress.spentSkillPoints();
+            totalUnlockedNodes += progress.unlockedNodes().size();
+            totalUnlockedMilestones += progress.unlockedMilestones().size();
+            if (progress.unlockedMilestones().size() > topMilestones
+                || (progress.unlockedMilestones().size() == topMilestones && progress.level() > topLevel)) {
+                topPlayer = profile.playerName();
+                topMilestones = progress.unlockedMilestones().size();
+                topLevel = progress.level();
+            }
+        }
+
+        double share = profiledPlayers == 0 ? 0.0D : assignedPlayers * 100.0D / profiledPlayers;
+        double avgLevel = assignedPlayers == 0 ? 0.0D : (double) totalLevels / assignedPlayers;
+        double avgAvailableSkillPoints = assignedPlayers == 0 ? 0.0D : (double) totalAvailableSkillPoints / assignedPlayers;
+        double avgSpentSkillPoints = assignedPlayers == 0 ? 0.0D : (double) totalSpentSkillPoints / assignedPlayers;
+        double avgUnlockedNodes = assignedPlayers == 0 ? 0.0D : (double) totalUnlockedNodes / assignedPlayers;
+        double avgUnlockedMilestones = assignedPlayers == 0 ? 0.0D : (double) totalUnlockedMilestones / assignedPlayers;
+
+        int assignedPlayersSnapshot = assignedPlayers;
+        String topPlayerSnapshot = topPlayer;
+        int topMilestonesSnapshot = topMilestones;
+        int topLevelSnapshot = topLevel;
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.header", jobName(jobId)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.summary",
+            assignedPlayersSnapshot,
+            profiledPlayers,
+            TextUtil.fmt2(share),
+            TextUtil.fmt2(avgLevel),
+            TextUtil.fmt2(avgAvailableSkillPoints),
+            TextUtil.fmt2(avgSpentSkillPoints)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.unlocks",
+            TextUtil.fmt2(avgUnlockedNodes),
+            TextUtil.fmt2(avgUnlockedMilestones)), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.top",
+            topPlayerSnapshot,
+            topLevelSnapshot,
+            topMilestonesSnapshot), false);
+
+        if (assignedPlayersSnapshot == 0) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.advice.empty", jobName(jobId)), false);
+            return 0;
+        }
+        if (share <= 10.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.advice.low_share",
+                jobName(jobId),
+                TextUtil.fmt2(share)), false);
+        }
+        if (avgAvailableSkillPoints >= 2.0D && avgAvailableSkillPoints > avgSpentSkillPoints * 0.5D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.advice.unspent",
+                jobName(jobId),
+                TextUtil.fmt2(avgAvailableSkillPoints)), false);
+        }
+        if (avgUnlockedNodes <= 0.5D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.advice.nodes", jobName(jobId)), false);
+        }
+        if (avgUnlockedMilestones <= 0.5D && avgLevel >= 10.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.advice.milestones", jobName(jobId)), false);
+        }
+        if (avgUnlockedMilestones >= 4.0D && avgLevel <= 12.0D) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.balanceprogress.advice.fast", jobName(jobId)), false);
+        }
         return 1;
     }
 
@@ -378,7 +1144,9 @@ public final class JobsAdminCommand {
     private static int eventMultiplier(CommandSourceStack source, double value) {
         setEventMultiplierAndSync(source, value);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.event_multiplier",
-            TextUtil.fmt2(ConfigManager.economy().eventMultiplier())), true);
+            TextUtil.fmt2(ConfigManager.economy().eventMultiplier()),
+            com.example.advancedjobs.util.TimeUtil.formatRemainingSeconds(Math.max(0L,
+                ConfigManager.economy().eventEndsAtEpochSecond() - com.example.advancedjobs.util.TimeUtil.now()))), true);
         return 1;
     }
 
@@ -403,7 +1171,10 @@ public final class JobsAdminCommand {
         setEventMultiplierAndSync(source, 1.0D, 0L);
         source.getServer().getPlayerList().broadcastSystemMessage(
             TextUtil.tr("message.advancedjobs.event_stopped"), false);
-        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.event_stopped"), true);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.event_stopped",
+            TextUtil.fmt2(ConfigManager.economy().eventMultiplier()),
+            com.example.advancedjobs.util.TimeUtil.formatRemainingSeconds(Math.max(0L,
+                ConfigManager.economy().eventEndsAtEpochSecond() - com.example.advancedjobs.util.TimeUtil.now()))), true);
         return 1;
     }
 
@@ -431,6 +1202,9 @@ public final class JobsAdminCommand {
 
     private static int caches(CommandSourceStack source) {
         var manager = AdvancedJobsMod.get().jobManager();
+        boolean rewardIndexCold = manager.rewardIndexEntryCount() == 0 || manager.jobCount() == 0;
+        boolean npcSkinCachesEmpty = ConfigManager.npcSkins().cachedLocalSkinFileCount() == 0
+            && ConfigManager.npcSkins().cachedBase64EntryCount() == 0;
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.caches.header"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.caches.runtime",
             manager.profileCacheSize(),
@@ -447,6 +1221,12 @@ public final class JobsAdminCommand {
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.caches.npc_skins",
             ConfigManager.npcSkins().cachedLocalSkinFileCount(),
             ConfigManager.npcSkins().cachedBase64EntryCount()), false);
+        if (rewardIndexCold) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.caches.advice.reward_index"), false);
+        }
+        if (npcSkinCachesEmpty) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.caches.advice.npc_skins"), false);
+        }
         return 1;
     }
 
@@ -462,18 +1242,62 @@ public final class JobsAdminCommand {
             yesNo(stats.overallLeaderboardCached()),
             warmedLocalSkins,
             ConfigManager.npcSkins().cachedBase64EntryCount()), true);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.warmcaches.note",
+            yesNo(manager.isCatalogPayloadCached()),
+            manager.catalogPayloadSize(),
+            manager.leaderboardCacheCount(),
+            yesNo(manager.isOverallLeaderboardCached())), false);
         return 1;
     }
 
     private static int clearCaches(CommandSourceStack source) {
         AdvancedJobsMod.get().jobManager().clearCaches();
         ConfigManager.npcSkins().clearCaches();
-        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.clearcaches"), true);
+        var manager = AdvancedJobsMod.get().jobManager();
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.clearcaches",
+            yesNo(manager.isCatalogPayloadCached()),
+            manager.leaderboardCacheCount(),
+            yesNo(manager.isOverallLeaderboardCached()),
+            ConfigManager.npcSkins().cachedLocalSkinFileCount(),
+            ConfigManager.npcSkins().cachedBase64EntryCount()), true);
         return 1;
     }
 
     private static Component yesNo(boolean value) {
         return TextUtil.tr(value ? "command.advancedjobs.common.enabled" : "command.advancedjobs.common.disabled");
+    }
+
+    private static Component readyState(boolean value) {
+        return TextUtil.tr(value ? "command.advancedjobs.common.ready" : "command.advancedjobs.common.warn");
+    }
+
+    private static Component jobName(String jobId) {
+        if (jobId == null) {
+            return TextUtil.tr("command.advancedjobs.common.none");
+        }
+        return AdvancedJobsMod.get().jobManager().job(jobId)
+            .map(definition -> TextUtil.tr(definition.translationKey()))
+            .orElse(Component.literal(jobId));
+    }
+
+    private static java.util.List<String> assignedJobIds(com.example.advancedjobs.model.PlayerJobProfile profile) {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        if (profile.activeJobId() != null) {
+            ids.add(profile.activeJobId());
+        }
+        if (ConfigManager.COMMON.allowSecondaryJob.get() && profile.secondaryJobId() != null) {
+            ids.add(profile.secondaryJobId());
+        }
+        return ids;
+    }
+
+    private static final class BalanceJobStats {
+        private int players;
+        private int totalLevels;
+        private double totalEarned;
+        private double totalPending;
+        private int activeDailies;
+        private int activeContracts;
     }
 
     private static void setEventMultiplierAndSync(CommandSourceStack source, double value) {
@@ -831,8 +1655,8 @@ public final class JobsAdminCommand {
         if (labelResets > 0) {
             refreshNpcLabels(source.getServer());
         }
-        if (spawned > 0 || skinResets > 0 || labelResets > 0) {
-            AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
+        if (skinResets > 0) {
+            AdvancedJobsMod.get().jobManager().syncCatalogToAllPlayers();
         }
         final int fixedRadius = radius;
         final int spawnedCount = spawned;
@@ -1087,7 +1911,7 @@ public final class JobsAdminCommand {
             return 0;
         }
         ConfigManager.npcSkins().setProfile(role.id(), "online", nickname);
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
+        AdvancedJobsMod.get().jobManager().syncCatalogToAllPlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npcskin.updated",
             TextUtil.tr(role.translationKey()), "online", nickname), true);
         return 1;
@@ -1104,7 +1928,7 @@ public final class JobsAdminCommand {
             return 0;
         }
         ConfigManager.npcSkins().setProfile(role.id(), "local", file);
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
+        AdvancedJobsMod.get().jobManager().syncCatalogToAllPlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npcskin.updated",
             TextUtil.tr(role.translationKey()), "local", file), true);
         return 1;
@@ -1117,7 +1941,7 @@ public final class JobsAdminCommand {
             return 0;
         }
         ConfigManager.npcSkins().resetProfile(role.id());
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
+        AdvancedJobsMod.get().jobManager().syncCatalogToAllPlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npcskin.reset",
             TextUtil.tr(role.translationKey())), true);
         return 1;
@@ -1160,7 +1984,7 @@ public final class JobsAdminCommand {
         for (NpcRole role : NpcRole.values()) {
             ConfigManager.npcSkins().setProfile(role.id(), "online", nickname);
         }
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
+        AdvancedJobsMod.get().jobManager().syncCatalogToAllPlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npcskin.setall.online", nickname), true);
         return 1;
     }
@@ -1173,7 +1997,7 @@ public final class JobsAdminCommand {
         for (NpcRole role : NpcRole.values()) {
             ConfigManager.npcSkins().setProfile(role.id(), "local", file);
         }
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
+        AdvancedJobsMod.get().jobManager().syncCatalogToAllPlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npcskin.setall.local", file), true);
         return 1;
     }
@@ -1182,7 +2006,7 @@ public final class JobsAdminCommand {
         for (NpcRole role : NpcRole.values()) {
             ConfigManager.npcSkins().resetProfile(role.id());
         }
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
+        AdvancedJobsMod.get().jobManager().syncCatalogToAllPlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npcskin.setall.reset"), true);
         return 1;
     }
@@ -1206,7 +2030,7 @@ public final class JobsAdminCommand {
             return 0;
         }
         ConfigManager.npcSkins().setProfile(toRole.id(), type, value);
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
+        AdvancedJobsMod.get().jobManager().syncCatalogToAllPlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npcskin.copy",
             TextUtil.tr(fromRole.translationKey()),
             TextUtil.tr(toRole.translationKey()),
@@ -1239,7 +2063,6 @@ public final class JobsAdminCommand {
         }
         ConfigManager.npcLabels().setLabel(role.id(), trimmed);
         refreshNpcLabels(source.getServer());
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npclabel.updated",
             TextUtil.tr(role.translationKey()), trimmed), true);
         return 1;
@@ -1253,7 +2076,6 @@ public final class JobsAdminCommand {
         }
         ConfigManager.npcLabels().resetLabel(role.id());
         refreshNpcLabels(source.getServer());
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npclabel.reset",
             TextUtil.tr(role.translationKey()),
             ConfigManager.npcLabels().label(role.id())), true);
@@ -1274,7 +2096,6 @@ public final class JobsAdminCommand {
         String label = ConfigManager.npcLabels().label(fromRole.id());
         ConfigManager.npcLabels().setLabel(toRole.id(), label);
         refreshNpcLabels(source.getServer());
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npclabel.copy",
             TextUtil.tr(fromRole.translationKey()),
             TextUtil.tr(toRole.translationKey()),
@@ -1292,7 +2113,6 @@ public final class JobsAdminCommand {
             ConfigManager.npcLabels().setLabel(role.id(), trimmed);
         }
         refreshNpcLabels(source.getServer());
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npclabel.setall", trimmed), true);
         return 1;
     }
@@ -1302,7 +2122,6 @@ public final class JobsAdminCommand {
             ConfigManager.npcLabels().resetLabel(role.id());
         }
         refreshNpcLabels(source.getServer());
-        AdvancedJobsMod.get().jobManager().syncAllOnlinePlayers();
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.npclabel.resetall"), true);
         return 1;
     }

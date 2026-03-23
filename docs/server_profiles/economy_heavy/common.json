@@ -1,0 +1,16 @@
+{
+  "allowSecondaryJob": false,
+  "jobChangePrice": 750.0,
+  "jobChangeCooldownSeconds": 14400,
+  "resetProgressOnChange": false,
+  "storeAllJobProgress": true,
+  "salaryClaimIntervalSeconds": 60,
+  "maxSalaryPerClaim": 30000.0,
+  "salaryTaxRate": 0.08,
+  "contractRerollPrice": 500.0,
+  "contractRerollCooldownSeconds": 1200,
+  "maxJobLevel": 100,
+  "baseXp": 110.0,
+  "growthFactor": 1.6,
+  "dailyResetTime": "04:00"
+}

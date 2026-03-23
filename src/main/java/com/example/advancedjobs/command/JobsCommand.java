@@ -163,6 +163,9 @@ public final class JobsCommand {
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.header"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.primary", jobName(profile.activeJobId())));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.secondary", jobName(profile.secondaryJobId())));
+        if (profile.activeJobId() == null && profile.secondaryJobId() == null) {
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.onboarding"));
+        }
         appendJobSlotSummary(player, profile, profile.activeJobId(), "command.advancedjobs.info.primary_details");
         appendJobSlotSummary(player, profile, profile.secondaryJobId(), "command.advancedjobs.info.secondary_details");
         if (viewedJobId != null) {
@@ -174,9 +177,15 @@ public final class JobsCommand {
                 nextPassiveUnlock(viewedJobId, activeProgress.level())));
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.next_skill_point",
                 nextSkillPointLevel(activeProgress.level())));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.progression_focus",
+                progressionFocusLabel(profile, viewedJobId),
+                progressionFocusCommand(profile, viewedJobId)));
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.daily_cycle",
                 TimeUtil.formatRemainingSeconds(Math.max(0L, nextDailyReset(activeProgress) - TimeUtil.now())),
                 TimeUtil.formatRemainingSeconds(Math.max(0L, nextContractRotation(activeProgress) - TimeUtil.now()))));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.next_step",
+                nextStepLabel(player, profile, viewedJobId),
+                nextStepCommand(profile, viewedJobId)));
         } else if (secondary) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.error.no_slot_job"));
         }
@@ -211,12 +220,18 @@ public final class JobsCommand {
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.loot_chunk_filters",
             TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.lootContainerRewardCooldownSeconds.get()),
             TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.exploredChunkRewardCooldownSeconds.get())));
+        player.sendSystemMessage(infoMobRestrictionLine());
+        player.sendSystemMessage(infoLootRestrictionLine());
         appendActiveEffects(player);
         return 1;
     }
 
     private static int help(ServerPlayer player) {
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.header"));
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.first_run"));
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.first_run.1"));
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.first_run.2"));
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.first_run.3"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.open"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.navigate"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.navigate_all"));
@@ -269,11 +284,50 @@ public final class JobsCommand {
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.skills"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.titles"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.milestones"));
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.progression_focus"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.leaderboard_board_quick_action"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.wand_quick_action"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.top"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.leave"));
         return 1;
+    }
+
+    private static String nextStepLabel(ServerPlayer player, PlayerJobProfile profile, String jobId) {
+        JobProgress progress = profile.progress(jobId);
+        if (!ConfigManager.COMMON.instantSalary.get() && progress.pendingSalary() > 0.0D) {
+            return TextUtil.tr("command.advancedjobs.info.next_step.salary").getString();
+        }
+        if (profile.availableSkillPoints(jobId) > 0) {
+            return TextUtil.tr("command.advancedjobs.info.next_step.skills").getString();
+        }
+        if (progress.dailyTasks().stream().anyMatch(task -> !task.completed())) {
+            return TextUtil.tr("command.advancedjobs.info.next_step.daily").getString();
+        }
+        if (progress.contracts().stream().anyMatch(contract -> !contract.completed())) {
+            return TextUtil.tr("command.advancedjobs.info.next_step.contracts").getString();
+        }
+        if (player.serverLevel() != null) {
+            return TextUtil.tr("command.advancedjobs.info.next_step.guide").getString();
+        }
+        return TextUtil.tr("command.advancedjobs.info.next_step.overview").getString();
+    }
+
+    private static String nextStepCommand(PlayerJobProfile profile, String jobId) {
+        JobProgress progress = profile.progress(jobId);
+        boolean secondary = profile.secondaryJobId() != null && jobId.equals(profile.secondaryJobId());
+        if (!ConfigManager.COMMON.instantSalary.get() && progress.pendingSalary() > 0.0D) {
+            return "/jobs salary";
+        }
+        if (profile.availableSkillPoints(jobId) > 0) {
+            return secondary ? "/jobs skills secondary" : "/jobs skills";
+        }
+        if (progress.dailyTasks().stream().anyMatch(task -> !task.completed())) {
+            return secondary ? "/jobs daily secondary" : "/jobs daily";
+        }
+        if (progress.contracts().stream().anyMatch(contract -> !contract.completed())) {
+            return secondary ? "/jobs contracts secondary" : "/jobs contracts";
+        }
+        return secondary ? "/jobs guide secondary" : "/jobs guide";
     }
 
     private static int navigate(ServerPlayer player, boolean secondary, int radius) {
@@ -836,6 +890,9 @@ public final class JobsCommand {
             nextPassiveUnlock(jobId, progress.level())));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.stats.next_skill_point",
             nextSkillPointLevel(progress.level())));
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.stats.progression_focus",
+            progressionFocusLabel(profile, jobId),
+            progressionFocusCommand(profile, jobId)));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.stats.daily_cycle",
             TimeUtil.formatRemainingSeconds(Math.max(0L, nextDailyReset(progress) - TimeUtil.now())),
             TimeUtil.formatRemainingSeconds(Math.max(0L, nextContractRotation(progress) - TimeUtil.now()))));
@@ -868,6 +925,8 @@ public final class JobsCommand {
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.stats.loot_chunk_filters",
             TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.lootContainerRewardCooldownSeconds.get()),
             TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.exploredChunkRewardCooldownSeconds.get())));
+        player.sendSystemMessage(statsMobRestrictionLine());
+        player.sendSystemMessage(statsLootRestrictionLine());
         appendActiveEffects(player);
         progress.actionStats().entrySet().stream()
             .max(Map.Entry.comparingByValue(Comparator.naturalOrder()))
@@ -900,6 +959,7 @@ public final class JobsCommand {
                 TextUtil.fmt2(ConfigManager.COMMON.salaryTaxRate.get() * 100.0D),
                 TextUtil.fmt2(ConfigManager.COMMON.maxSalaryPerClaim.get()),
                 TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.salaryClaimIntervalSeconds.get())));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.salary.next_action.instant"));
             return 1;
         }
         double pending = totalPendingSalary(profile);
@@ -914,6 +974,8 @@ public final class JobsCommand {
         if (paid < 0.0D) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.salary.cooldown",
                 TimeUtil.formatRemainingSeconds((long) -paid)));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.salary.next_action.cooldown",
+                TimeUtil.formatRemainingSeconds((long) -paid)));
             return 0;
         }
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.salary.claimed", TextUtil.fmt2(paid)));
@@ -921,6 +983,12 @@ public final class JobsCommand {
             TextUtil.fmt2(ConfigManager.COMMON.salaryTaxRate.get() * 100.0D),
             TextUtil.fmt2(ConfigManager.COMMON.maxSalaryPerClaim.get()),
             TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.salaryClaimIntervalSeconds.get())));
+        if (pending <= 0.0D) {
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.salary.next_action.empty"));
+        } else {
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.salary.next_action.ready",
+                TextUtil.fmt2(netPreview)));
+        }
         return 1;
     }
 
@@ -1057,6 +1125,7 @@ public final class JobsCommand {
             TimeUtil.formatRemainingSeconds(nextDailyReset(progress) - TimeUtil.now())));
         if (progress.dailyTasks().isEmpty()) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.daily.none"));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.daily.next_action.empty"));
             return 1;
         }
         progress.dailyTasks().forEach(task -> {
@@ -1069,6 +1138,7 @@ public final class JobsCommand {
                     template.buffEffect(), template.buffDurationSeconds(), template.buffAmplifier(),
                     template.bonusTitle()));
         });
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.daily.next_action.progress"));
         return 1;
     }
 
@@ -1090,6 +1160,11 @@ public final class JobsCommand {
             TimeUtil.formatRemainingSeconds(AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile))));
         if (progress.contracts().isEmpty()) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.contracts.none"));
+            player.sendSystemMessage(TextUtil.tr(contractRerollReady(profile)
+                ? "command.advancedjobs.contracts.next_action.ready"
+                : "command.advancedjobs.contracts.next_action.wait",
+                TextUtil.fmt2(ConfigManager.COMMON.contractRerollPrice.get()),
+                TimeUtil.formatRemainingSeconds(AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile))));
             return 1;
         }
         progress.contracts().forEach(contract -> {
@@ -1102,6 +1177,10 @@ public final class JobsCommand {
                     template.buffEffect(), template.buffDurationSeconds(), template.buffAmplifier(),
                     template.bonusTitle()));
         });
+        player.sendSystemMessage(TextUtil.tr(contractRerollReady(profile)
+            ? "command.advancedjobs.contracts.next_action.choice.ready"
+            : "command.advancedjobs.contracts.next_action.choice.progress",
+            TimeUtil.formatRemainingSeconds(AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile))));
         return 1;
     }
 
@@ -1120,12 +1199,16 @@ public final class JobsCommand {
         var preview = AdvancedJobsMod.get().jobManager().previewContractReroll(player, jobId);
         if (preview != com.example.advancedjobs.job.JobManager.ContractRerollResult.SUCCESS) {
             player.sendSystemMessage(contractRerollFailureMessage(preview, profile, jobId));
+            player.sendSystemMessage(contractRerollNextActionMessage(preview, profile, jobId));
             return 0;
         }
         boolean ok = AdvancedJobsMod.get().jobManager().rerollContracts(player, jobId);
         player.sendSystemMessage(TextUtil.tr(ok
             ? "command.advancedjobs.contracts.reroll.success"
             : "command.advancedjobs.contracts.reroll.failed", jobName(jobId)));
+        player.sendSystemMessage(TextUtil.tr(ok
+            ? "command.advancedjobs.contracts.reroll.next_action.success"
+            : "command.advancedjobs.contracts.reroll.next_action.failed", jobName(jobId)));
         return ok ? 1 : 0;
     }
 
@@ -1254,6 +1337,10 @@ public final class JobsCommand {
             TimeUtil.formatRemainingSeconds(progress.expiresAtEpochSecond() - TimeUtil.now()));
     }
 
+    private static boolean contractRerollReady(PlayerJobProfile profile) {
+        return AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile) <= 0L;
+    }
+
     private static Component recentDailyHistoryLine(String jobId, DailyTaskHistoryEntry entry) {
         ConfigManager.DailyTaskTemplate template = ConfigManager.dailyTasks().tasksForJob(jobId).stream()
             .filter(candidate -> candidate.id().equals(entry.taskId()))
@@ -1319,6 +1406,36 @@ public final class JobsCommand {
 
     private static Component yesNo(boolean value) {
         return TextUtil.tr(value ? "command.advancedjobs.common.enabled" : "command.advancedjobs.common.disabled");
+    }
+
+    private static Component infoMobRestrictionLine() {
+        if (ConfigManager.COMMON.blockArtificialMobRewards.get()
+            || ConfigManager.COMMON.blockBabyMobRewards.get()
+            || ConfigManager.COMMON.blockTamedMobRewards.get()) {
+            return TextUtil.tr("command.advancedjobs.info.restrictions.mobs");
+        }
+        return TextUtil.tr("command.advancedjobs.info.restrictions.mobs.relaxed");
+    }
+
+    private static Component infoLootRestrictionLine() {
+        return TextUtil.tr("command.advancedjobs.info.restrictions.loot",
+            TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.lootContainerRewardCooldownSeconds.get()),
+            TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.exploredChunkRewardCooldownSeconds.get()));
+    }
+
+    private static Component statsMobRestrictionLine() {
+        if (ConfigManager.COMMON.blockArtificialMobRewards.get()
+            || ConfigManager.COMMON.blockBabyMobRewards.get()
+            || ConfigManager.COMMON.blockTamedMobRewards.get()) {
+            return TextUtil.tr("command.advancedjobs.stats.restrictions.mobs");
+        }
+        return TextUtil.tr("command.advancedjobs.stats.restrictions.mobs.relaxed");
+    }
+
+    private static Component statsLootRestrictionLine() {
+        return TextUtil.tr("command.advancedjobs.stats.restrictions.loot",
+            TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.lootContainerRewardCooldownSeconds.get()),
+            TimeUtil.formatRemainingSeconds(ConfigManager.COMMON.exploredChunkRewardCooldownSeconds.get()));
     }
 
     private static double totalPendingSalary(PlayerJobProfile profile) {
@@ -1477,6 +1594,33 @@ public final class JobsCommand {
         return ((level / 5) + 1) * 5;
     }
 
+    private static String progressionFocusLabel(PlayerJobProfile profile, String jobId) {
+        JobProgress progress = profile.progress(jobId);
+        int availablePoints = profile.availableSkillPoints(jobId);
+        if (availablePoints > 0) {
+            return TextUtil.tr("command.advancedjobs.progression.skills", availablePoints).getString();
+        }
+        if (progress.unlockedMilestones().isEmpty() && progress.level() >= 5) {
+            return TextUtil.tr("command.advancedjobs.progression.first_milestone").getString();
+        }
+        if (!progress.unlockedMilestones().isEmpty()) {
+            return TextUtil.tr("command.advancedjobs.progression.milestones", latestMilestone(progress)).getString();
+        }
+        return TextUtil.tr("command.advancedjobs.progression.level", nextSkillPointLevel(progress.level())).getString();
+    }
+
+    private static String progressionFocusCommand(PlayerJobProfile profile, String jobId) {
+        boolean secondary = profile.secondaryJobId() != null && jobId.equals(profile.secondaryJobId());
+        JobProgress progress = profile.progress(jobId);
+        if (profile.availableSkillPoints(jobId) > 0) {
+            return secondary ? "/jobs skills secondary" : "/jobs skills";
+        }
+        if (progress.unlockedMilestones().isEmpty() && progress.level() < 5) {
+            return secondary ? "/jobs stats secondary" : "/jobs stats";
+        }
+        return secondary ? "/jobs milestones secondary" : "/jobs milestones";
+    }
+
     private static Component latestUnlockedTitle(PlayerJobProfile profile) {
         if (profile.unlockedTitles().isEmpty()) {
             return TextUtil.tr("command.advancedjobs.common.none");
@@ -1608,6 +1752,19 @@ public final class JobsCommand {
             case INSUFFICIENT_FUNDS -> TextUtil.tr("command.advancedjobs.contracts.reroll.insufficient_funds",
                 TextUtil.fmt2(ConfigManager.COMMON.contractRerollPrice.get()));
             case SUCCESS -> TextUtil.tr("command.advancedjobs.contracts.reroll.success", jobName(jobId));
+        };
+    }
+
+    private static Component contractRerollNextActionMessage(com.example.advancedjobs.job.JobManager.ContractRerollResult result,
+                                                             PlayerJobProfile profile, String jobId) {
+        return switch (result) {
+            case NO_JOB, NOT_ASSIGNED -> TextUtil.tr("command.advancedjobs.contracts.reroll.next_action.no_job");
+            case COOLDOWN -> TextUtil.tr("command.advancedjobs.contracts.reroll.next_action.cooldown",
+                TimeUtil.formatRemainingSeconds(AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile)));
+            case INSUFFICIENT_FUNDS -> TextUtil.tr("command.advancedjobs.contracts.reroll.next_action.insufficient_funds",
+                TextUtil.fmt2(ConfigManager.COMMON.contractRerollPrice.get()),
+                jobName(jobId));
+            case SUCCESS -> TextUtil.tr("command.advancedjobs.contracts.reroll.next_action.success", jobName(jobId));
         };
     }
 

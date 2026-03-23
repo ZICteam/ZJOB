@@ -8,7 +8,7 @@
 
 ## Server Installation
 
-1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.16.jar`.
+1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.64.jar`.
 2. Put the jar into the server `mods` folder.
 3. Start the server once.
 4. Stop the server.
@@ -91,8 +91,28 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 Artifact:
 
 ```text
-build/libs/advancedjobs-1.0.16.jar
+build/libs/advancedjobs-1.0.60.jar
 ```
+
+Optional starting presets for `common.json` and `economy.json` are documented in:
+
+- [`docs/SERVER_PROFILES.md`](/Users/novaevent/Documents/CODEX/ZAdvancedJobs/docs/SERVER_PROFILES.md)
+
+Live-server upgrades and legacy config migration are documented in:
+
+- [`docs/MIGRATIONS.md`](/Users/novaevent/Documents/CODEX/ZAdvancedJobs/docs/MIGRATIONS.md)
+
+Recommended compatibility stacks and verification setups are documented in:
+
+- [`docs/COMPATIBILITY.md`](/Users/novaevent/Documents/CODEX/ZAdvancedJobs/docs/COMPATIBILITY.md)
+
+Recommended release smoke-pass order with the service client is documented in:
+
+- [`docs/VERIFICATION_FLOW.md`](/Users/novaevent/Documents/CODEX/ZAdvancedJobs/docs/VERIFICATION_FLOW.md)
+
+Recommended QA handoff template after that smoke-pass is documented in:
+
+- [`docs/RELEASE_VERIFICATION_REPORT.md`](/Users/novaevent/Documents/CODEX/ZAdvancedJobs/docs/RELEASE_VERIFICATION_REPORT.md)
 
 Optional integrations are discovered automatically during build if their jars are found in:
 

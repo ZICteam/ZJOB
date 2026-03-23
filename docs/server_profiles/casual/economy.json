@@ -1,0 +1,7 @@
+{
+  "provider": "internal",
+  "externalCurrency": "z_coin",
+  "taxSinkAccountUuid": "00000000-0000-0000-0000-000000000001",
+  "vipMultiplier": 1.0,
+  "eventMultiplier": 1.0
+}

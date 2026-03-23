@@ -58,6 +58,10 @@ If `Z_Economy` is loaded:
 - the jobs mod only relies on the public API contract
 - the jobs jar does not ship `Z_Economy` classes; the real API comes from the economy mod at runtime
 
+For the full live-server update flow, including currency migration and legacy config folder handling, see:
+
+- [`docs/MIGRATIONS.md`](/Users/novaevent/Documents/CODEX/ZAdvancedJobs/docs/MIGRATIONS.md)
+
 ## Recommended Verification
 
 1. Start the server.

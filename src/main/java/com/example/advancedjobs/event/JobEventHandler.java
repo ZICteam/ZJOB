@@ -231,8 +231,7 @@ public class JobEventHandler {
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             jobManager.getOrCreateProfile(player);
-            jobManager.syncCatalogToPlayer(player);
-            jobManager.syncToPlayer(player);
+            jobManager.syncFullStateToPlayer(player);
         }
     }
 

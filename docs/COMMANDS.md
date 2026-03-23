@@ -10,8 +10,12 @@
   - prints command help
 - `/jobs info`
   - shows current job/economy summary
+- `/jobs info`
+  - now also explains common anti-abuse reasons for failed mob, loot, and exploration progress
 - `/jobs stats`
   - shows detailed player progression data
+- `/jobs stats`
+  - now also gives reliable next-step guidance for combat, loot, and exploration progress
 
 ### Job Selection
 
@@ -20,12 +24,20 @@
 - `/jobs leave`
 - `/jobs leave secondary`
 
+Recommended first-run flow:
+- `/jobs`
+- `/jobs choose <job>`
+- `/jobs info`
+- `/jobs guide`
+
 ### Progression Screens
 
 - `/jobs salary`
+- `/jobs salary` explains the next useful action when salary is automatic, on cooldown, empty, or worth delaying for a larger manual claim
 - `/jobs daily`
 - `/jobs contracts`
 - `/jobs contracts reroll`
+- `/jobs contracts reroll` explains whether the player should wait for cooldown, earn more money, choose a profession, or inspect the newly rolled list
 - `/jobs skills`
 - `/jobs titles`
 - `/jobs milestones`
@@ -61,12 +73,40 @@
 ### Core Admin
 
 - `/jobsadmin help`
+- `/jobsadmin health`
+- `/jobsadmin perfcheck`
+  - gives a compact performance-readiness snapshot for cache warmth, runtime flags, and anti-abuse tracker activity
+- `/jobsadmin economycheck`
+  - checks configured vs active provider, `Z_Economy` bridge availability, external currency presence, and tax sink UUID validity
+- `/jobsadmin readycheck`
+  - gives a compact release-readiness summary for jobs data, economy routing, caches, visual prep, and runtime flags before the staged smoke-pass
+- `/jobsadmin payoutcheck <player>`
+  - inspects pending salary, manual-claim cooldown, cap, tax preview, and payout readiness for one player
+- `/jobsadmin balancecheck <player>`
+  - inspects progression stage, earnings, pending salary, skill points, and daily/contract saturation for one player
+- `/jobsadmin balanceoverview`
+  - shows average progression and economy shape across cached player profiles
+- `/jobsadmin balancejobs`
+  - shows which professions dominate assigned slots, average level, average earnings, and pending salary across cached player profiles
+- `/jobsadmin balancejob <job>`
+  - shows a single profession's live balance loop: adoption share, average level, average earnings, pending salary, and task activity
+- `/jobsadmin balanceprogress <job>`
+  - shows a single profession's progression pressure: free skill points, spent points, unlocked nodes, milestones, and adoption share
 - `/jobsadmin reload`
 - `/jobsadmin status`
+  - now also warns when the reward index is empty or NPC skin caches look unprepared
 - `/jobsadmin antiabuse`
 - `/jobsadmin caches`
+- `/jobsadmin caches`
+  - now also explains whether empty reward-index or NPC-skin cache state likely needs reload, warmup, or local skin verification
 - `/jobsadmin warmcaches`
 - `/jobsadmin clearcaches`
+
+Recommended recovery flow:
+- `/jobsadmin status`
+- `/jobsadmin warmcaches`
+- `/jobsadmin reload`
+- `/jobsadmin doctor [radius]`
 
 ### Player/Profile Admin
 
