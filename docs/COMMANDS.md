@@ -82,6 +82,8 @@ Recommended first-run flow:
   - gives a compact release-readiness summary for jobs data, economy routing, caches, visual prep, and runtime flags before the staged smoke-pass
 - `/jobsadmin payoutcheck <player>`
   - inspects pending salary, manual-claim cooldown, cap, tax preview, and payout readiness for one player
+- `/jobsadmin routecheck <player>`
+  - inspects live route mode, next desk, blocker, and recovery path for each player slot
 - `/jobsadmin balancecheck <player>`
   - inspects progression stage, earnings, pending salary, skill points, and daily/contract saturation for one player
 - `/jobsadmin balanceoverview`

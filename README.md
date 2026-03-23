@@ -54,6 +54,11 @@
 - improved in-screen board routing for My Job, Skills, Daily, and Contracts onboarding states
 - added quick in-screen slot switching for My Job, Daily, and Contracts when both assigned slots are present
 - added clickable compact-screen cross-links between the main profession workflow tabs
+- added compact contextual summaries to Salary, Skills, Daily, and Contracts workflow screens
+- added starter-focus guidance to Jobs and My Job for clearer first-hour profession onboarding
+- added clearer first-hour route messaging to Jobs and Help for smoother profession onboarding
+- extended first-hour route guidance into commands and service-desk NPC hints
+- extended first-hour route guidance into guide, navigate, and where summary commands
 - internal economy fallback
 - external economy mode through `Z_Economy`
 - admin tools for hub deployment, repair, diagnostics, cache control, and anti-abuse checks
@@ -81,7 +86,7 @@
 
 ## Quick Start
 
-1. Build the mod or take `build/libs/advancedjobs-1.0.64.jar`.
+1. Build the mod or take `build/libs/advancedjobs-1.0.76.jar`.
 2. Put the jar into the server `mods` directory.
 3. Start the server once so configs are generated.
 4. Review `config/ZAdvancedJobs/`.
@@ -145,7 +150,7 @@ Optional client integrations:
 Output:
 
 ```text
-build/libs/advancedjobs-1.0.60.jar
+build/libs/advancedjobs-1.0.76.jar
 ```
 
 ## Generated Config Files
@@ -186,6 +191,7 @@ Admin:
 - `/jobsadmin economycheck`
 - `/jobsadmin readycheck`
 - `/jobsadmin payoutcheck <player>`
+- `/jobsadmin routecheck <player>`
 - `/jobsadmin balancecheck <player>`
 - `/jobsadmin balanceoverview`
 - `/jobsadmin balancejobs`

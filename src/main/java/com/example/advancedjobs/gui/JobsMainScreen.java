@@ -439,6 +439,7 @@ public class JobsMainScreen extends Screen {
 
     private void renderProfessions(GuiGraphics graphics, int mouseX, int mouseY, List<Component> tooltip) {
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.professions"), 20, 54, contentWidth(), 0xFFFFFF);
+        drawClampedText(graphics, professionsFirstHourRouteLine(), 20, 68, contentWidth(), 0x9BE39B);
         List<JsonObject> jobs = ClientJobState.jobs();
         JsonObject detailsJob = selectedJob;
         int compactDetailsPanelX = professionDetailsPanelX();
@@ -475,6 +476,7 @@ public class JobsMainScreen extends Screen {
                 detailsJob = job;
                 tooltip.add(Component.translatable(job.get("nameKey").getAsString()));
                 tooltip.add(Component.translatable(job.get("descriptionKey").getAsString()));
+                tooltip.add(firstHourFocusLine(job));
                 tooltip.add(Component.translatable("gui.advancedjobs.tooltip.level_xp", job.get("level").getAsInt(), TextUtil.fmt2(job.get("xp").getAsDouble()), TextUtil.fmt2(requiredXp)));
                 tooltip.add(Component.translatable("gui.advancedjobs.tooltip.slot", selectedJobSlotLabel(jobId)));
                 tooltip.add(Component.translatable("gui.advancedjobs.tooltip.daily_contracts", countEntries(job, "dailyTasks"), countEntries(job, "contracts")));
@@ -540,21 +542,22 @@ public class JobsMainScreen extends Screen {
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.pending_salary", TextUtil.fmt2(selectedJob.get("pendingSalary").getAsDouble())), leftX, summaryY + 38, summaryLineWidth, 0xFFD37F);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.skill_points", selectedJob.get("skillPoints").getAsInt()), leftX, summaryY + 50, summaryLineWidth, 0xFFBE7F);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.job_slot", selectedJobSlotLabel()), leftX, summaryY + 62, summaryLineWidth, 0x9AD0FF);
+        drawClampedText(graphics, firstHourFocusLine(selectedJob), leftX, summaryY + 74, summaryLineWidth, 0x9BE39B);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.my_job_summary",
             completedEntries(selectedJob, "dailyTasks"), countEntries(selectedJob, "dailyTasks"),
-            completedEntries(selectedJob, "contracts"), countEntries(selectedJob, "contracts")), leftX, summaryY + 74, summaryLineWidth, 0xD0D0D0);
+            completedEntries(selectedJob, "contracts"), countEntries(selectedJob, "contracts")), leftX, summaryY + 86, summaryLineWidth, 0xD0D0D0);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.my_job_history",
             selectedJob.has("completedDailyCount") ? selectedJob.get("completedDailyCount").getAsInt() : 0,
-            selectedJob.has("completedContractCount") ? selectedJob.get("completedContractCount").getAsInt() : 0), leftX, summaryY + 86, summaryLineWidth, 0xB8B8B8);
+            selectedJob.has("completedContractCount") ? selectedJob.get("completedContractCount").getAsInt() : 0), leftX, summaryY + 98, summaryLineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.unlocked_titles",
-            ClientJobState.unlockedTitles().size(), latestUnlockedTitle()), leftX, summaryY + 98, summaryLineWidth, 0xCFAF6A);
+            ClientJobState.unlockedTitles().size(), latestUnlockedTitle()), leftX, summaryY + 110, summaryLineWidth, 0xCFAF6A);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.milestones",
             selectedJob.has("milestoneCount") ? selectedJob.get("milestoneCount").getAsInt() : 0,
-            latestMilestone(selectedJob)), leftX, summaryY + 110, summaryLineWidth, 0x9AD0FF);
+            latestMilestone(selectedJob)), leftX, summaryY + 122, summaryLineWidth, 0x9AD0FF);
         if (canQuickSwitchAssignedSlot()) {
-            drawClampedText(graphics, slotSwitchHintLine(), leftX, summaryY + 122, summaryLineWidth, 0x9BE39B);
+            drawClampedText(graphics, slotSwitchHintLine(), leftX, summaryY + 134, summaryLineWidth, 0x9BE39B);
         }
-        if (isHovering(leftX, summaryY + 98, summaryLineWidth, 12, mouseX, mouseY)) {
+        if (isHovering(leftX, summaryY + 110, summaryLineWidth, 12, mouseX, mouseY)) {
             appendTitleTooltip(tooltip);
         }
         if (isHovering(leftX, summaryY + 50, summaryLineWidth, 12, mouseX, mouseY)) {
@@ -566,15 +569,18 @@ public class JobsMainScreen extends Screen {
         if (isHovering(leftX, summaryY + 62, summaryLineWidth, 12, mouseX, mouseY)) {
             tooltip.add(boardHintLine(nextStepBoardLabel(selectedJob), selectedJobSlotLabel()));
         }
-        if (canQuickSwitchAssignedSlot() && isHovering(leftX, summaryY + 122, summaryLineWidth, 12, mouseX, mouseY)) {
+        if (isHovering(leftX, summaryY + 74, summaryLineWidth, 12, mouseX, mouseY)) {
+            tooltip.add(firstHourFocusLine(selectedJob));
+        }
+        if (canQuickSwitchAssignedSlot() && isHovering(leftX, summaryY + 134, summaryLineWidth, 12, mouseX, mouseY)) {
             tooltip.add(slotSwitchHintLine());
         }
-        if (isHovering(leftX, summaryY + 110, summaryLineWidth, 12, mouseX, mouseY)) {
+        if (isHovering(leftX, summaryY + 122, summaryLineWidth, 12, mouseX, mouseY)) {
             appendMilestoneTooltip(selectedJob, tooltip);
         }
 
         double requiredXp = requiredXp(selectedJob);
-        int summaryExtraY = canQuickSwitchAssignedSlot() ? 14 : 0;
+        int summaryExtraY = 12 + (canQuickSwitchAssignedSlot() ? 14 : 0);
         drawProgressBar(graphics, leftX, viewportY + 126 + summaryExtraY, leftWidth - 12, 8, selectedJob.get("xp").getAsDouble(), requiredXp, 0x334455, 0x4CAF50);
         if (isHovering(leftX, viewportY + 126 + summaryExtraY, leftWidth - 12, 8, mouseX, mouseY)) {
             tooltip.add(Component.translatable("gui.advancedjobs.tooltip.profession_xp"));
@@ -855,6 +861,9 @@ public class JobsMainScreen extends Screen {
             Component.translatable("gui.advancedjobs.skill_points_short", selectedJob.get("skillPoints").getAsInt()));
         drawCompactFlowLinkHeader(graphics, panelX, panelY, panelWidth, mouseX, mouseY);
         drawSkillViewportBackground(graphics, contentX, contentY, contentWidth, contentHeight);
+        if (compactSummaryInset(Tab.SKILLS) > 0) {
+            drawClampedText(graphics, compactSummaryLine(Tab.SKILLS), contentX + 8, contentY + 4, contentWidth - 22, 0x9AD0FF);
+        }
         int hoveredTab = skillBranchTabAt(mouseX, mouseY);
         if (hoveredTab >= 0 && hoveredTab < branches.size()) {
             JsonObject branch = branches.get(hoveredTab).getAsJsonObject();
@@ -1553,6 +1562,7 @@ public class JobsMainScreen extends Screen {
         if (selectedJob == null) {
             drawClampedText(graphics, Component.translatable("gui.advancedjobs.no_active_profession"), 20, 84, contentWidth(), 0xD0D0D0);
             drawClampedText(graphics, Component.translatable("gui.advancedjobs.empty_guidance.choose_profession"), 20, 98, contentWidth(), 0x9AD0FF);
+            drawClampedText(graphics, onboardingBoardHintLine(), 20, 112, contentWidth(), 0x9BE39B);
             return;
         }
         int panelX = salaryWindowX();
@@ -1572,12 +1582,16 @@ public class JobsMainScreen extends Screen {
 
         int lineWidth = viewportWidth - 24;
         List<Component> lines = salaryLines();
+        int summaryInset = compactSummaryInset(Tab.SALARY);
+        if (summaryInset > 0) {
+            drawClampedText(graphics, compactSummaryLine(Tab.SALARY), viewportX + 8, viewportY + 6, lineWidth, 0x9AD0FF);
+        }
         int visibleRows = salaryVisibleRows();
         int visible = Math.min(visibleRows, Math.max(0, lines.size() - salaryOffset));
         graphics.enableScissor(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight);
         for (int i = 0; i < visible; i++) {
             int index = salaryOffset + i;
-            drawClampedText(graphics, lines.get(index), viewportX + 8, viewportY + 6 + i * 12, lineWidth, salaryLineColor(index));
+            drawClampedText(graphics, lines.get(index), viewportX + 8, viewportY + 6 + summaryInset + i * 12, lineWidth, salaryLineColor(index));
         }
         graphics.disableScissor();
         drawScrollbar(graphics, ScrollTarget.SALARY, viewportX + viewportWidth - 6, viewportY + 1, viewportHeight - 2,
@@ -1606,7 +1620,8 @@ public class JobsMainScreen extends Screen {
         int cardWidth = viewportWidth - 14;
         int rowHeight = 34;
         boolean showSlotSwitch = canQuickSwitchAssignedSlot();
-        int listY = viewportY + (showSlotSwitch ? 18 : 4);
+        int summaryInset = compactSummaryInset(Tab.DAILY);
+        int listY = viewportY + (showSlotSwitch ? 18 : 4) + summaryInset;
         drawVanillaAdvancementWindow(graphics, panelX, panelY, panelWidth, panelHeight);
         drawCompactWindowHeader(graphics, panelX, panelY, panelWidth,
             Component.translatable("gui.advancedjobs.daily"),
@@ -1615,6 +1630,9 @@ public class JobsMainScreen extends Screen {
         drawSkillViewportBackground(graphics, viewportX, viewportY, viewportWidth, viewportHeight);
         if (showSlotSwitch) {
             drawClampedText(graphics, slotSwitchHintLine(), viewportX + 4, viewportY + 4, viewportWidth - 8, 0x9BE39B);
+        }
+        if (summaryInset > 0) {
+            drawClampedText(graphics, compactSummaryLine(Tab.DAILY), viewportX + 4, viewportY + (showSlotSwitch ? 18 : 4), viewportWidth - 8, 0x9AD0FF);
         }
         if (daily.isEmpty()) {
             drawClampedText(graphics, Component.translatable("gui.advancedjobs.no_daily_tasks"),
@@ -1718,6 +1736,7 @@ public class JobsMainScreen extends Screen {
         drawSkillViewportBackground(graphics, viewportX, viewportY, viewportWidth, viewportHeight);
         List<JsonObject> contracts = visibleContracts();
         boolean showSlotSwitch = canQuickSwitchAssignedSlot();
+        int summaryInset = compactSummaryInset(Tab.CONTRACTS);
         drawCompactWindowHeader(graphics, panelX, panelY, panelWidth,
             Component.translatable("gui.advancedjobs.contracts"),
             Component.translatable("gui.advancedjobs.contracts_tasks_short", contracts.size()));
@@ -1725,8 +1744,11 @@ public class JobsMainScreen extends Screen {
         if (showSlotSwitch) {
             drawClampedText(graphics, slotSwitchHintLine(), viewportX + 8, viewportY + 8, viewportWidth - 22, 0x9BE39B);
         }
+        if (summaryInset > 0) {
+            drawClampedText(graphics, compactSummaryLine(Tab.CONTRACTS), viewportX + 8, viewportY + (showSlotSwitch ? 20 : 8), viewportWidth - 22, 0x9AD0FF);
+        }
         if (contracts.isEmpty()) {
-            int baseY = viewportY + (showSlotSwitch ? 20 : 8);
+            int baseY = viewportY + (showSlotSwitch ? 20 : 8) + summaryInset;
             drawClampedText(graphics, Component.translatable("gui.advancedjobs.no_contract_tasks"), viewportX + 8, baseY, viewportWidth - 22, 0xD0D0D0);
             drawClampedText(graphics, Component.translatable("gui.advancedjobs.empty_guidance.contracts"), viewportX + 8, baseY + 14, viewportWidth - 22, 0x9AD0FF);
             drawClampedText(graphics, boardHintLine(nextStepBoardLabel(selectedJob), selectedJobSlotLabel()), viewportX + 8, baseY + 28, viewportWidth - 22, 0x9BE39B);
@@ -1742,7 +1764,7 @@ public class JobsMainScreen extends Screen {
         int visible = Math.min(visibleRows, Math.max(0, contracts.size() - listOffset));
         int cardWidth = viewportWidth - 14;
         int rowHeight = 34;
-        int listStartY = viewportY + (showSlotSwitch ? 18 : 4);
+        int listStartY = viewportY + (showSlotSwitch ? 18 : 4) + summaryInset;
         graphics.enableScissor(viewportX, viewportY, viewportX + viewportWidth, viewportY + viewportHeight);
         for (int i = 0; i < visible; i++) {
             JsonObject contract = contracts.get(listOffset + i);
@@ -1990,72 +2012,73 @@ public class JobsMainScreen extends Screen {
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.5"), 20, 140, lineWidth, 0xD0D0D0);
         drawClampedText(graphics, helpNextStepLine(), 20, 154, lineWidth, 0x9AD0FF);
         drawClampedText(graphics, helpWhereNextLine(), 20, 168, lineWidth, 0x9BE39B);
+        drawClampedText(graphics, helpFirstHourRouteLine(), 20, 182, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.change",
-            TextUtil.fmt2(ClientJobState.jobChangePrice()), TimeUtil.formatRemainingSeconds(ClientJobState.jobChangeCooldownRemaining())), 20, 182, lineWidth, 0xB8B8B8);
+            TextUtil.fmt2(ClientJobState.jobChangePrice()), TimeUtil.formatRemainingSeconds(ClientJobState.jobChangeCooldownRemaining())), 20, 196, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.secondary",
-            Component.translatable(ClientJobState.allowSecondaryJob() ? "gui.advancedjobs.common.enabled" : "gui.advancedjobs.common.disabled")), 20, 196, lineWidth, 0xB8B8B8);
+            Component.translatable(ClientJobState.allowSecondaryJob() ? "gui.advancedjobs.common.enabled" : "gui.advancedjobs.common.disabled")), 20, 210, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.salary_mode",
-            Component.translatable(ClientJobState.instantSalary() ? "gui.advancedjobs.salary_mode.instant" : "gui.advancedjobs.salary_mode.manual")), 20, 210, lineWidth, 0xB8B8B8);
+            Component.translatable(ClientJobState.instantSalary() ? "gui.advancedjobs.salary_mode.instant" : "gui.advancedjobs.salary_mode.manual")), 20, 224, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.salary_claim_cooldown",
-            TimeUtil.formatRemainingSeconds(ClientJobState.salaryClaimCooldownRemaining())), 20, 224, lineWidth, 0xB8B8B8);
+            TimeUtil.formatRemainingSeconds(ClientJobState.salaryClaimCooldownRemaining())), 20, 238, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.salary_tax_rate",
-            TextUtil.fmt2(ClientJobState.salaryTaxRate() * 100.0D)), 20, 238, lineWidth, 0xB8B8B8);
+            TextUtil.fmt2(ClientJobState.salaryTaxRate() * 100.0D)), 20, 252, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.salary_claim_cap",
-            TextUtil.fmt2(ClientJobState.maxSalaryPerClaim())), 20, 252, lineWidth, 0xB8B8B8);
+            TextUtil.fmt2(ClientJobState.maxSalaryPerClaim())), 20, 266, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.salary_claim_preview",
             TextUtil.fmt2(nextSalaryClaimGross()),
-            TextUtil.fmt2(nextSalaryClaimNet())), 20, 266, lineWidth, 0x9AD0FF);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.salary_board_quick_action"), 20, 280, lineWidth, 0xB8B8B8);
+            TextUtil.fmt2(nextSalaryClaimNet())), 20, 280, lineWidth, 0x9AD0FF);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.salary_board_quick_action"), 20, 294, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.economy_context",
-            ClientJobState.economyProvider(), ClientJobState.economyCurrency()), 20, 294, lineWidth, 0xB8B8B8);
+            ClientJobState.economyProvider(), ClientJobState.economyCurrency()), 20, 308, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.tax_sink_account",
-            ClientJobState.taxSinkAccountUuid()), 20, 308, lineWidth, 0xB8B8B8);
+            ClientJobState.taxSinkAccountUuid()), 20, 322, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.titles",
-            ClientJobState.unlockedTitles().size(), latestUnlockedTitle()), 20, 322, lineWidth, 0xCFAF6A);
+            ClientJobState.unlockedTitles().size(), latestUnlockedTitle()), 20, 336, lineWidth, 0xCFAF6A);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.daily_cycle",
             selectedJob != null ? dailyResetTime(selectedJob) : "--",
-            selectedJob != null ? nextContractRotationTime(selectedJob) : "--"), 20, 336, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.daily_board_quick_action"), 20, 350, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.status_board_quick_action"), 20, 364, lineWidth, 0xB8B8B8);
+            selectedJob != null ? nextContractRotationTime(selectedJob) : "--"), 20, 350, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.daily_board_quick_action"), 20, 364, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.status_board_quick_action"), 20, 378, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.contract_board",
             TextUtil.fmt2(ClientJobState.contractRerollPrice()),
-            TimeUtil.formatRemainingSeconds(ClientJobState.contractRerollCooldownRemaining())), 20, 378, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.contract_board_quick_action"), 20, 392, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.jobs_master_quick_action"), 20, 406, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.help_board_quick_action"), 20, 420, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.skills_board_quick_action"), 20, 434, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.leaderboard_board_quick_action"), 20, 448, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.wand_quick_action"), 20, 462, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.reward_context"), 20, 476, lineWidth, 0xFFFFFF);
+            TimeUtil.formatRemainingSeconds(ClientJobState.contractRerollCooldownRemaining())), 20, 392, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.contract_board_quick_action"), 20, 406, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.jobs_master_quick_action"), 20, 420, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.help_board_quick_action"), 20, 434, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.skills_board_quick_action"), 20, 448, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.leaderboard_board_quick_action"), 20, 462, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.wand_quick_action"), 20, 476, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.reward_context"), 20, 490, lineWidth, 0xFFFFFF);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.world_multiplier",
-            targetLabel(ClientJobState.currentWorldId()), TextUtil.fmt2(ClientJobState.worldRewardMultiplier())), 20, 490, lineWidth, 0xD0D0D0);
+            targetLabel(ClientJobState.currentWorldId()), TextUtil.fmt2(ClientJobState.worldRewardMultiplier())), 20, 504, lineWidth, 0xD0D0D0);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.biome_multiplier",
-            targetLabel(ClientJobState.currentBiomeId()), TextUtil.fmt2(ClientJobState.biomeRewardMultiplier())), 20, 504, lineWidth, 0xD0D0D0);
+            targetLabel(ClientJobState.currentBiomeId()), TextUtil.fmt2(ClientJobState.biomeRewardMultiplier())), 20, 518, lineWidth, 0xD0D0D0);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.event_multiplier",
-            TextUtil.fmt2(ClientJobState.eventRewardMultiplier())), 20, 518, lineWidth, 0xD0D0D0);
+            TextUtil.fmt2(ClientJobState.eventRewardMultiplier())), 20, 532, lineWidth, 0xD0D0D0);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.event_time_left",
-            TimeUtil.formatRemainingSeconds(ClientJobState.eventRemainingSeconds())), 20, 532, lineWidth, 0xD0D0D0);
+            TimeUtil.formatRemainingSeconds(ClientJobState.eventRemainingSeconds())), 20, 546, lineWidth, 0xD0D0D0);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.vip_multiplier",
-            TextUtil.fmt2(ClientJobState.vipRewardMultiplier())), 20, 546, lineWidth, 0xD0D0D0);
+            TextUtil.fmt2(ClientJobState.vipRewardMultiplier())), 20, 560, lineWidth, 0xD0D0D0);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.total_multiplier",
-            TextUtil.fmt2(ClientJobState.effectiveRewardMultiplier())), 20, 560, lineWidth, 0x9BE39B);
+            TextUtil.fmt2(ClientJobState.effectiveRewardMultiplier())), 20, 574, lineWidth, 0x9BE39B);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.mob_filters",
             yesNo(ClientJobState.blockArtificialMobRewards()),
             yesNo(ClientJobState.blockBabyMobRewards()),
-            yesNo(ClientJobState.blockTamedMobRewards())), 20, 574, lineWidth, 0xB8B8B8);
+            yesNo(ClientJobState.blockTamedMobRewards())), 20, 588, lineWidth, 0xB8B8B8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.loot_chunk_filters",
             TimeUtil.formatRemainingSeconds(ClientJobState.lootContainerRewardCooldownSeconds()),
-            TimeUtil.formatRemainingSeconds(ClientJobState.exploredChunkRewardCooldownSeconds())), 20, 588, lineWidth, 0xB8B8B8);
-        drawClampedText(graphics, helpMobRestrictionLine(), 20, 602, lineWidth, 0x9AD0FF);
-        drawClampedText(graphics, helpLootRestrictionLine(), 20, 616, lineWidth, 0x9AD0FF);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.commands"), 20, 630, lineWidth, 0xFFFFFF);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.1"), 20, 644, lineWidth, 0xD0D0D0);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.2"), 20, 658, lineWidth, 0xD0D0D0);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.3"), 20, 672, lineWidth, 0xD0D0D0);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.4"), 20, 686, lineWidth, 0xD0D0D0);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.5"), 20, 700, lineWidth, 0xD0D0D0);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.6"), 20, 714, lineWidth, 0xD0D0D0);
-        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.secondary_commands"), 20, 728, lineWidth, 0xB8B8B8);
+            TimeUtil.formatRemainingSeconds(ClientJobState.exploredChunkRewardCooldownSeconds())), 20, 602, lineWidth, 0xB8B8B8);
+        drawClampedText(graphics, helpMobRestrictionLine(), 20, 616, lineWidth, 0x9AD0FF);
+        drawClampedText(graphics, helpLootRestrictionLine(), 20, 630, lineWidth, 0x9AD0FF);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.commands"), 20, 644, lineWidth, 0xFFFFFF);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.1"), 20, 658, lineWidth, 0xD0D0D0);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.2"), 20, 672, lineWidth, 0xD0D0D0);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.3"), 20, 686, lineWidth, 0xD0D0D0);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.4"), 20, 700, lineWidth, 0xD0D0D0);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.5"), 20, 714, lineWidth, 0xD0D0D0);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.command.6"), 20, 728, lineWidth, 0xD0D0D0);
+        drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.secondary_commands"), 20, 742, lineWidth, 0xB8B8B8);
     }
 
     private Button claimSalaryButton(String key, int x, int y, int width) {
@@ -2570,12 +2593,33 @@ public class JobsMainScreen extends Screen {
             nextStepCommand(helpJob));
     }
 
+    private Component professionsFirstHourRouteLine() {
+        JsonObject routeJob = selectedJob != null ? selectedJob : activeOrSecondaryJob();
+        if (routeJob == null) {
+            return Component.translatable("gui.advancedjobs.professions.first_hour_route.onboarding");
+        }
+        return Component.translatable("gui.advancedjobs.professions.first_hour_route",
+            Component.translatable(routeJob.get("nameKey").getAsString()),
+            firstHourFocusLine(routeJob));
+    }
+
     private Component helpWhereNextLine() {
         JsonObject helpJob = selectedJob != null ? selectedJob : activeOrSecondaryJob();
         if (helpJob == null) {
             return onboardingBoardHintLine();
         }
         return boardHintLine(nextStepBoardLabel(helpJob), selectedJobSlotLabel(helpJob.get("id").getAsString()));
+    }
+
+    private Component helpFirstHourRouteLine() {
+        JsonObject helpJob = selectedJob != null ? selectedJob : activeOrSecondaryJob();
+        if (helpJob == null) {
+            return Component.translatable("gui.advancedjobs.help.first_hour_route.onboarding");
+        }
+        return Component.translatable("gui.advancedjobs.help.first_hour_route",
+            Component.translatable("gui.advancedjobs.help.board.jobs"),
+            firstHourFocusLine(helpJob),
+            Component.translatable("gui.advancedjobs.help.board.my_job"));
     }
 
     private JsonObject activeOrSecondaryJob() {
@@ -2705,6 +2749,60 @@ public class JobsMainScreen extends Screen {
         return Component.translatable("gui.advancedjobs.flow_link_hint",
             Component.translatable(target.key),
             selectedJobSlotLabel());
+    }
+
+    private int compactSummaryInset(Tab tab) {
+        return compactSummaryLine(tab).getString().isEmpty() ? 0 : 14;
+    }
+
+    private Component compactSummaryLine(Tab tab) {
+        if (selectedJob == null) {
+            return Component.empty();
+        }
+        return switch (tab) {
+            case SALARY -> salaryActionReasonLine();
+            case SKILLS -> Component.translatable("gui.advancedjobs.compact_summary.skills",
+                progressionHintLabel(selectedJob),
+                progressionHintCommand(selectedJob));
+            case DAILY -> {
+                int remaining = Math.max(0, countEntries(selectedJob, "dailyTasks") - completedEntries(selectedJob, "dailyTasks"));
+                yield remaining > 0
+                    ? Component.translatable("gui.advancedjobs.compact_summary.daily.progress", remaining, dailyResetTime(selectedJob))
+                    : Component.translatable("gui.advancedjobs.compact_summary.daily.done", dailyResetTime(selectedJob));
+            }
+            case CONTRACTS -> {
+                int remaining = Math.max(0, countEntries(selectedJob, "contracts") - completedEntries(selectedJob, "contracts"));
+                yield remaining > 0
+                    ? Component.translatable("gui.advancedjobs.compact_summary.contracts.progress", remaining, nextContractRotationTime(selectedJob))
+                    : contractsActionReasonLine();
+            }
+            default -> Component.empty();
+        };
+    }
+
+    private Component firstHourFocusLine(JsonObject job) {
+        if (job == null) {
+            return Component.empty();
+        }
+        int level = job.has("level") ? job.get("level").getAsInt() : 1;
+        int skillPoints = job.has("skillPoints") ? job.get("skillPoints").getAsInt() : 0;
+        int remainingDaily = Math.max(0, countEntries(job, "dailyTasks") - completedEntries(job, "dailyTasks"));
+        int remainingContracts = Math.max(0, countEntries(job, "contracts") - completedEntries(job, "contracts"));
+        if (level < 3) {
+            return Component.translatable("gui.advancedjobs.first_hour_focus.level", 3);
+        }
+        if (skillPoints > 0) {
+            return Component.translatable("gui.advancedjobs.first_hour_focus.skills", skillPoints);
+        }
+        if (remainingDaily > 0) {
+            return Component.translatable("gui.advancedjobs.first_hour_focus.daily", remainingDaily);
+        }
+        if (remainingContracts > 0) {
+            return Component.translatable("gui.advancedjobs.first_hour_focus.contracts", remainingContracts);
+        }
+        return Component.translatable("gui.advancedjobs.first_hour_focus.progression",
+            progressionHintLabel(job),
+            progressionHintCommand(job));
     }
 
     private boolean canQuickSwitchAssignedSlot() {
@@ -3353,41 +3451,42 @@ public class JobsMainScreen extends Screen {
             job.has("rewardCount") ? job.get("rewardCount").getAsInt() : 0,
             job.has("passives") ? job.getAsJsonArray("passives").size() : 0,
             job.has("skillBranches") ? job.getAsJsonArray("skillBranches").size() : 0), panelX, panelY + 80, lineWidth, 0xD0D0D0);
+        drawClampedText(graphics, firstHourFocusLine(job), panelX, panelY + 92, lineWidth, 0x9BE39B);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.pending_salary",
-            TextUtil.fmt2(job.get("pendingSalary").getAsDouble())), panelX, panelY + 92, lineWidth, 0xFFD37F);
+            TextUtil.fmt2(job.get("pendingSalary").getAsDouble())), panelX, panelY + 104, lineWidth, 0xFFD37F);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.skill_points",
-            job.get("skillPoints").getAsInt()), panelX, panelY + 104, lineWidth, 0xFFBE7F);
+            job.get("skillPoints").getAsInt()), panelX, panelY + 116, lineWidth, 0xFFBE7F);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.profession_claim_share",
-            TextUtil.fmt2(nextSalaryClaimGross(job.get("id").getAsString()))), panelX, panelY + 116, lineWidth, 0x9AD0FF);
+            TextUtil.fmt2(nextSalaryClaimGross(job.get("id").getAsString()))), panelX, panelY + 128, lineWidth, 0x9AD0FF);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.next_passive_unlock",
-            nextPassiveUnlockLabel(job)), panelX, panelY + 128, lineWidth, 0xC8C8C8);
+            nextPassiveUnlockLabel(job)), panelX, panelY + 140, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.next_skill_point",
-            nextSkillPointLevel(job)), panelX, panelY + 140, lineWidth, 0xC8C8C8);
+            nextSkillPointLevel(job)), panelX, panelY + 152, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.next_skill_node",
-            nextSkillNodeLabel(job)), panelX, panelY + 152, lineWidth, 0xC8C8C8);
+            nextSkillNodeLabel(job)), panelX, panelY + 164, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.profession_milestones",
             job.has("milestoneCount") ? job.get("milestoneCount").getAsInt() : 0,
-            latestMilestone(job)), panelX, panelY + 164, lineWidth, 0x9AD0FF);
+            latestMilestone(job)), panelX, panelY + 176, lineWidth, 0x9AD0FF);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.profession_unlocked_nodes",
-            job.has("unlockedNodes") ? job.getAsJsonArray("unlockedNodes").size() : 0), panelX, panelY + 176, lineWidth, 0xCFAF6A);
+            job.has("unlockedNodes") ? job.getAsJsonArray("unlockedNodes").size() : 0), panelX, panelY + 188, lineWidth, 0xCFAF6A);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.my_job_summary",
             completedEntries(job, "dailyTasks"), countEntries(job, "dailyTasks"),
-            completedEntries(job, "contracts"), countEntries(job, "contracts")), panelX, panelY + 188, lineWidth, 0xD0D0D0);
+            completedEntries(job, "contracts"), countEntries(job, "contracts")), panelX, panelY + 200, lineWidth, 0xD0D0D0);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.unlocked_titles",
-            ClientJobState.unlockedTitles().size(), latestUnlockedTitle()), panelX, panelY + 200, lineWidth, 0xCFAF6A);
+            ClientJobState.unlockedTitles().size(), latestUnlockedTitle()), panelX, panelY + 212, lineWidth, 0xCFAF6A);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.profession_daily_cycle",
-            dailyResetTime(job)), panelX, panelY + 212, lineWidth, 0xC8C8C8);
+            dailyResetTime(job)), panelX, panelY + 224, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.profession_contract_cycle",
-            nextContractRotationTime(job)), panelX, panelY + 224, lineWidth, 0xC8C8C8);
+            nextContractRotationTime(job)), panelX, panelY + 236, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.profession_contract_reroll",
             TextUtil.fmt2(ClientJobState.contractRerollPrice()),
-            TimeUtil.formatRemainingSeconds(ClientJobState.contractRerollCooldownRemaining())), panelX, panelY + 236, lineWidth, 0xC8C8C8);
+            TimeUtil.formatRemainingSeconds(ClientJobState.contractRerollCooldownRemaining())), panelX, panelY + 248, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.salary_mode",
-            Component.translatable(ClientJobState.instantSalary() ? "gui.advancedjobs.salary_mode.instant" : "gui.advancedjobs.salary_mode.manual")), panelX, panelY + 248, lineWidth, 0xC8C8C8);
+            Component.translatable(ClientJobState.instantSalary() ? "gui.advancedjobs.salary_mode.instant" : "gui.advancedjobs.salary_mode.manual")), panelX, panelY + 260, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.world_multiplier",
-            targetLabel(ClientJobState.currentWorldId()), TextUtil.fmt2(ClientJobState.worldRewardMultiplier())), panelX, panelY + 260, lineWidth, 0xC8C8C8);
+            targetLabel(ClientJobState.currentWorldId()), TextUtil.fmt2(ClientJobState.worldRewardMultiplier())), panelX, panelY + 272, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.help.biome_multiplier",
-            targetLabel(ClientJobState.currentBiomeId()), TextUtil.fmt2(ClientJobState.biomeRewardMultiplier())), panelX, panelY + 272, lineWidth, 0xC8C8C8);
+            targetLabel(ClientJobState.currentBiomeId()), TextUtil.fmt2(ClientJobState.biomeRewardMultiplier())), panelX, panelY + 284, lineWidth, 0xC8C8C8);
         drawClampedText(graphics, Component.translatable("gui.advancedjobs.profession_effective_multiplier",
             TextUtil.fmt2(ClientJobState.effectiveRewardMultiplier())), panelX, panelY + 284, lineWidth, 0x9BE39B);
         int previewY = previewStartY;

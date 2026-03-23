@@ -196,6 +196,9 @@ public final class JobsAdminCommand {
             .then(Commands.literal("payoutcheck")
                 .then(Commands.argument("player", EntityArgument.player())
                     .executes(ctx -> payoutCheck(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
+            .then(Commands.literal("routecheck")
+                .then(Commands.argument("player", EntityArgument.player())
+                    .executes(ctx -> routeCheck(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
             .then(Commands.literal("balancecheck")
                 .then(Commands.argument("player", EntityArgument.player())
                     .executes(ctx -> balanceCheck(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
@@ -308,6 +311,7 @@ public final class JobsAdminCommand {
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.clearcaches"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.profile"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.payoutcheck"), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.routecheck"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.balancecheck"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.balanceoverview"), false);
         source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.help.balancejobs"), false);
@@ -664,6 +668,49 @@ public final class JobsAdminCommand {
             source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.payoutcheck.advice.ready"), false);
         }
         return 1;
+    }
+
+    private static int routeCheck(CommandSourceStack source, ServerPlayer player) {
+        var manager = AdvancedJobsMod.get().jobManager();
+        var profile = manager.getOrCreateProfile(player);
+        int radius = 24;
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.routecheck.header",
+            player.getGameProfile().getName(),
+            radius), false);
+        routeCheckSlot(source, player, profile, false, radius);
+        if (profile.secondaryJobId() != null || ConfigManager.COMMON.allowSecondaryJob.get()) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.routecheck.separator"), false);
+            routeCheckSlot(source, player, profile, true, radius);
+        }
+        return 1;
+    }
+
+    private static void routeCheckSlot(CommandSourceStack source, ServerPlayer player,
+                                       com.example.advancedjobs.model.PlayerJobProfile profile,
+                                       boolean secondary, int radius) {
+        NpcRole role = JobsCommand.recommendedRole(profile, secondary);
+        String nearest = JobsCommand.nearestDistanceForRole(player, role, radius);
+        boolean missingDesk = "-".equals(nearest);
+        String blocker = JobsCommand.routeBlockerLabel(profile, role, secondary, missingDesk);
+        String recovery = blocker == null
+            ? JobsCommand.roleActionCommand(role, secondary)
+            : JobsCommand.routeRecoveryLabel(profile, role, secondary, missingDesk, radius);
+
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.routecheck.slot",
+            TextUtil.tr(secondary ? "command.advancedjobs.slot.secondary" : "command.advancedjobs.slot.primary"),
+            TextUtil.tr(role.translationKey()),
+            nearest), false);
+        source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.routecheck.mode",
+            JobsCommand.routeModeLabel(role, profile, secondary),
+            JobsCommand.roleActionLabel(role, profile, secondary),
+            JobsCommand.roleActionCommand(role, secondary)), false);
+        if (blocker == null) {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.routecheck.blocker.none"), false);
+        } else {
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.routecheck.blocker", blocker), false);
+            source.sendSuccess(() -> TextUtil.tr("command.advancedjobs.admin.routecheck.recovery", recovery), false);
+        }
     }
 
     private static int balanceCheck(CommandSourceStack source, ServerPlayer player) {

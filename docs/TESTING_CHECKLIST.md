@@ -31,6 +31,12 @@ Use this checklist before releases and after any change that touches gameplay, e
 - player can leave a primary job
 - secondary job flow works when enabled
 - `/jobs info` reflects current progression and economy state
+- `/jobs where ready`, `/jobs where missing`, and `/jobs where summary all` give correct route coverage hints for both slots
+- `/jobs where ready` and `/jobs where summary` explain the concrete action and command for the current service board correctly
+- `/jobs navigate` and `/jobs guide` show the correct route mode for onboarding, payout, tasks, progression, and support flows
+- `/jobs navigate` and `/jobs guide` show the correct blocker when the route is held by an empty slot, salary cooldown, or missing nearby desk
+- `/jobs navigate` and `/jobs guide` show the correct recovery step for those blockers without contradicting the current slot state
+- `/jobs navigate` and `/jobs guide` distinguish empty daily/contracts loops and contract reroll wait states correctly for task-flow slots
 
 ## Salary
 
@@ -99,6 +105,7 @@ Use this checklist before releases and after any change that touches gameplay, e
 - `/jobsadmin economycheck` reflects external-provider readiness accurately
 - `/jobsadmin readycheck` summarizes release-readiness accurately before the staged smoke-pass
 - `/jobsadmin payoutcheck <player>` explains salary payout readiness accurately for a live player profile
+- `/jobsadmin routecheck <player>` reflects the same route mode, blocker, and recovery state as the player-facing route commands
 - `/jobsadmin balancecheck <player>` explains progression and economy state accurately for a live player profile
 - `/jobsadmin balanceoverview` explains the server-wide balance shape accurately for cached profiles
 - `/jobsadmin balancejobs` explains profession dominance and average job health accurately for cached profiles
@@ -112,6 +119,11 @@ Use this checklist before releases and after any change that touches gameplay, e
 - My Job / Skills / Daily / Contracts empty and onboarding states point to the right service board for the current slot
 - My Job / Daily / Contracts allow quick in-screen switching between primary and secondary assigned slots
 - compact My Job / Skills / Daily / Contracts screens expose a working clickable flow link to the next relevant tab
+- compact Salary / Skills / Daily / Contracts screens show a useful contextual summary for the current slot and current priority
+- Jobs browsing and My Job show a clear starter-focus hint for the first hour after profession selection
+- Jobs and Help show a clear first-hour route that leads from profession choice into My Job and the next relevant loop
+- `/jobs help`, `/jobs info`, Jobs Master, and Help Board all reflect the same first-hour starter-focus route
+- `/jobs guide`, `/jobs navigate`, and `/jobs where summary` reflect the same first-hour route for the current slot
 - `/jobsadmin reload` refreshes config safely
 - `/jobsadmin status` reflects current state accurately
 - `/jobsadmin status` shows recovery advice when economy routing mismatches, caches are cold, or a reward event is still active

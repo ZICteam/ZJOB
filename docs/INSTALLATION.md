@@ -8,7 +8,7 @@
 
 ## Server Installation
 
-1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.64.jar`.
+1. Build the project or take the ready jar from `build/libs/advancedjobs-1.0.76.jar`.
 2. Put the jar into the server `mods` folder.
 3. Start the server once.
 4. Stop the server.
@@ -91,7 +91,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 Artifact:
 
 ```text
-build/libs/advancedjobs-1.0.60.jar
+build/libs/advancedjobs-1.0.76.jar
 ```
 
 Optional starting presets for `common.json` and `economy.json` are documented in:

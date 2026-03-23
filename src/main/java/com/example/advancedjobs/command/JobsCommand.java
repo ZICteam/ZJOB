@@ -171,6 +171,9 @@ public final class JobsCommand {
         if (viewedJobId != null) {
             JobProgress activeProgress = profile.progress(viewedJobId);
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.slot_view", slotLabel(secondary), jobName(viewedJobId)));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.first_hour_route",
+                firstHourFocusLabel(profile, viewedJobId),
+                firstHourFocusCommand(profile, viewedJobId)));
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.title",
                 professionTitle(viewedJobId, activeProgress.level())));
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.info.next_passive",
@@ -232,6 +235,7 @@ public final class JobsCommand {
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.first_run.1"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.first_run.2"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.first_run.3"));
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.first_run.4"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.open"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.navigate"));
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.help.navigate_all"));
@@ -346,6 +350,16 @@ public final class JobsCommand {
         if (reason != null) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.navigate.reason", reason));
         }
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.navigate.route_mode",
+            routeModeLabel(recommendedRole, profile, secondary),
+            roleActionCommand(recommendedRole, secondary)));
+        String blocker = routeBlockerLabel(profile, recommendedRole, secondary, "-".equals(nearest));
+        if (blocker != null) {
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.navigate.blocker", blocker));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.navigate.recovery",
+                routeRecoveryLabel(profile, recommendedRole, secondary, "-".equals(nearest), radius)));
+        }
+        appendFirstHourRoute(player, profile, secondary, "command.advancedjobs.navigate.first_hour_route");
         if ("-".equals(nearest)) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.guide.missing_hint", radius));
         }
@@ -412,6 +426,16 @@ public final class JobsCommand {
         if (reason != null) {
             player.sendSystemMessage(Component.literal(reason));
         }
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.guide.route_mode",
+            routeModeLabel(recommendedRole, profile, secondary),
+            roleActionCommand(recommendedRole, secondary)));
+        String blocker = routeBlockerLabel(profile, recommendedRole, secondary, "-".equals(recommendedDistance));
+        if (blocker != null) {
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.guide.blocker", blocker));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.guide.recovery",
+                routeRecoveryLabel(profile, recommendedRole, secondary, "-".equals(recommendedDistance), radius)));
+        }
+        appendFirstHourRoute(player, profile, secondary, "command.advancedjobs.guide.first_hour_route");
 
         NpcRole secondaryRole = secondaryRecommendedRole(profile, recommendedRole);
         if (secondaryRole != null) {
@@ -511,6 +535,7 @@ public final class JobsCommand {
     }
 
     private static int whereMissing(ServerPlayer player, int radius) {
+        PlayerJobProfile profile = AdvancedJobsMod.get().jobManager().getOrCreateProfile(player);
         int missing = 0;
         player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.missing_header", radius));
         for (NpcRole role : NpcRole.values()) {
@@ -531,6 +556,13 @@ public final class JobsCommand {
         }
         if (missing == 0) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.missing_none"));
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.missing_ready_hint", radius, radius));
+        } else {
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.missing_follow_up", radius));
+            appendFirstHourRouteWithSlot(player, profile, false, "command.advancedjobs.where.missing_first_hour_route");
+            if (profile.secondaryJobId() != null || ConfigManager.COMMON.allowSecondaryJob.get()) {
+                appendFirstHourRouteWithSlot(player, profile, true, "command.advancedjobs.where.missing_first_hour_route");
+            }
         }
         return 1;
     }
@@ -591,6 +623,10 @@ public final class JobsCommand {
         if (reason != null) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.summary_reason", reason));
         }
+        player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.summary_recommended_action",
+            roleActionLabel(recommendedRole, profile, secondary),
+            roleActionCommand(recommendedRole, secondary)));
+        appendFirstHourRoute(player, profile, secondary, "command.advancedjobs.where.summary_first_hour_route");
         NpcRole followUpRole = secondaryRecommendedRole(profile, recommendedRole);
         if (followUpRole != null) {
             String followUpNearest = nearestDistanceForRole(player, followUpRole, radius);
@@ -608,6 +644,9 @@ public final class JobsCommand {
                     TextUtil.tr(followUpRole.translationKey()),
                     followUpSource));
             }
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.summary_follow_up_action",
+                roleActionLabel(followUpRole, profile, secondary),
+                roleActionCommand(followUpRole, secondary)));
         }
         if (coveredRoles < NpcRole.values().length) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.summary_hint"));
@@ -632,6 +671,10 @@ public final class JobsCommand {
                 ? "command.advancedjobs.where.summary_all_ready"
                 : "command.advancedjobs.where.summary_all_missing",
             radius));
+        appendFirstHourRouteWithSlot(player, profile, false, "command.advancedjobs.where.summary_all_first_hour_route");
+        if (profile.secondaryJobId() != null || ConfigManager.COMMON.allowSecondaryJob.get()) {
+            appendFirstHourRouteWithSlot(player, profile, true, "command.advancedjobs.where.summary_all_first_hour_route");
+        }
         whereSummary(player, false, radius);
         if (profile.secondaryJobId() != null || ConfigManager.COMMON.allowSecondaryJob.get()) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.summary_all_separator"));
@@ -695,6 +738,9 @@ public final class JobsCommand {
             if (reason != null) {
                 player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.ready_reason", reason));
             }
+            player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.ready_action",
+                roleActionLabel(role, profile, secondary),
+                roleActionCommand(role, secondary)));
             if (count == 0) {
                 player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.ready_missing",
                     TextUtil.tr(role.translationKey())));
@@ -709,6 +755,10 @@ public final class JobsCommand {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.ready_summary",
                 nearbyReady,
                 shown));
+            appendFirstHourRoute(player, profile, secondary, "command.advancedjobs.where.ready_first_hour_route");
+            if (nearbyReady < shown) {
+                player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.ready_follow_up_missing", radius));
+            }
         }
         return 1;
     }
@@ -728,6 +778,10 @@ public final class JobsCommand {
         if (activeSlots > 0 && coveredSlots < activeSlots) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.ready_all_missing", radius));
         }
+        appendFirstHourRouteWithSlot(player, profile, false, "command.advancedjobs.where.ready_all_first_hour_route");
+        if (profile.secondaryJobId() != null || ConfigManager.COMMON.allowSecondaryJob.get()) {
+            appendFirstHourRouteWithSlot(player, profile, true, "command.advancedjobs.where.ready_all_first_hour_route");
+        }
         whereReady(player, false, radius);
         if (profile.secondaryJobId() != null || ConfigManager.COMMON.allowSecondaryJob.get()) {
             player.sendSystemMessage(TextUtil.tr("command.advancedjobs.where.ready_all_separator"));
@@ -736,7 +790,7 @@ public final class JobsCommand {
         return 1;
     }
 
-    private static NpcRole recommendedRole(PlayerJobProfile profile, boolean secondary) {
+    static NpcRole recommendedRole(PlayerJobProfile profile, boolean secondary) {
         String jobId = selectedSlotJobId(profile, secondary);
         if (jobId == null) {
             return NpcRole.JOBS_MASTER;
@@ -831,7 +885,7 @@ public final class JobsCommand {
         return jobId != null && profile.availableSkillPoints(jobId) > 0;
     }
 
-    private static String nearestDistanceForRole(ServerPlayer player, NpcRole role, int radius) {
+    static String nearestDistanceForRole(ServerPlayer player, NpcRole role, int radius) {
         double nearest = Double.MAX_VALUE;
         for (var entity : player.serverLevel().getEntities(null, player.getBoundingBox().inflate(radius))) {
             if (!(entity instanceof Mob mob)) {
@@ -1619,6 +1673,208 @@ public final class JobsCommand {
             return secondary ? "/jobs stats secondary" : "/jobs stats";
         }
         return secondary ? "/jobs milestones secondary" : "/jobs milestones";
+    }
+
+    private static void appendFirstHourRoute(ServerPlayer player, PlayerJobProfile profile, boolean secondary, String translationKey) {
+        String jobId = selectedSlotJobId(profile, secondary);
+        if (jobId == null) {
+            player.sendSystemMessage(TextUtil.tr(translationKey,
+                TextUtil.tr("command.advancedjobs.first_hour.choose").getString(),
+                secondary ? "/jobs choose <job> secondary" : "/jobs choose <job>"));
+            return;
+        }
+        player.sendSystemMessage(TextUtil.tr(translationKey,
+            firstHourFocusLabel(profile, jobId),
+            firstHourFocusCommand(profile, jobId)));
+    }
+
+    private static void appendFirstHourRouteWithSlot(ServerPlayer player, PlayerJobProfile profile, boolean secondary, String translationKey) {
+        String jobId = selectedSlotJobId(profile, secondary);
+        if (jobId == null) {
+            player.sendSystemMessage(TextUtil.tr(translationKey,
+                slotLabel(secondary),
+                TextUtil.tr("command.advancedjobs.first_hour.choose").getString(),
+                secondary ? "/jobs choose <job> secondary" : "/jobs choose <job>"));
+            return;
+        }
+        player.sendSystemMessage(TextUtil.tr(translationKey,
+            slotLabel(secondary),
+            firstHourFocusLabel(profile, jobId),
+            firstHourFocusCommand(profile, jobId)));
+    }
+
+    private static String firstHourFocusLabel(PlayerJobProfile profile, String jobId) {
+        JobProgress progress = profile.progress(jobId);
+        if (progress.level() < 3) {
+            return TextUtil.tr("command.advancedjobs.first_hour.level", 3).getString();
+        }
+        if (profile.availableSkillPoints(jobId) > 0) {
+            return TextUtil.tr("command.advancedjobs.first_hour.skills", profile.availableSkillPoints(jobId)).getString();
+        }
+        long remainingDaily = progress.dailyTasks().stream().filter(task -> !task.completed()).count();
+        if (remainingDaily > 0) {
+            return TextUtil.tr("command.advancedjobs.first_hour.daily", remainingDaily).getString();
+        }
+        long remainingContracts = progress.contracts().stream().filter(contract -> !contract.completed()).count();
+        if (remainingContracts > 0) {
+            return TextUtil.tr("command.advancedjobs.first_hour.contracts", remainingContracts).getString();
+        }
+        return TextUtil.tr("command.advancedjobs.first_hour.progression",
+            progressionFocusLabel(profile, jobId),
+            progressionFocusCommand(profile, jobId)).getString();
+    }
+
+    private static String firstHourFocusCommand(PlayerJobProfile profile, String jobId) {
+        boolean secondary = profile.secondaryJobId() != null && jobId.equals(profile.secondaryJobId());
+        JobProgress progress = profile.progress(jobId);
+        if (progress.level() < 3) {
+            return secondary ? "/jobs stats secondary" : "/jobs stats";
+        }
+        if (profile.availableSkillPoints(jobId) > 0) {
+            return secondary ? "/jobs skills secondary" : "/jobs skills";
+        }
+        if (progress.dailyTasks().stream().anyMatch(task -> !task.completed())) {
+            return secondary ? "/jobs daily secondary" : "/jobs daily";
+        }
+        if (progress.contracts().stream().anyMatch(contract -> !contract.completed())) {
+            return secondary ? "/jobs contracts secondary" : "/jobs contracts";
+        }
+        return secondary ? "/jobs guide secondary" : "/jobs guide";
+    }
+
+    static String roleActionLabel(NpcRole role, PlayerJobProfile profile, boolean secondary) {
+        return switch (role) {
+            case JOBS_MASTER -> TextUtil.tr("command.advancedjobs.where.action.jobs_master").getString();
+            case SALARY_BOARD -> TextUtil.tr("command.advancedjobs.where.action.salary",
+                TextUtil.fmt2(pendingSalaryForSlot(profile, secondary))).getString();
+            case DAILY_BOARD -> TextUtil.tr("command.advancedjobs.where.action.daily").getString();
+            case CONTRACTS_BOARD -> TextUtil.tr("command.advancedjobs.where.action.contracts").getString();
+            case SKILLS_BOARD -> TextUtil.tr("command.advancedjobs.where.action.skills",
+                profile.availableSkillPoints(selectedSlotJobId(profile, secondary))).getString();
+            case STATUS_BOARD -> TextUtil.tr("command.advancedjobs.where.action.status").getString();
+            case LEADERBOARD_BOARD -> TextUtil.tr("command.advancedjobs.where.action.top").getString();
+            case HELP_BOARD -> TextUtil.tr("command.advancedjobs.where.action.help").getString();
+        };
+    }
+
+    static String roleActionCommand(NpcRole role, boolean secondary) {
+        return switch (role) {
+            case JOBS_MASTER -> secondary ? "/jobs choose <job> secondary" : "/jobs choose <job>";
+            case SALARY_BOARD -> "/jobs salary";
+            case DAILY_BOARD -> secondary ? "/jobs daily secondary" : "/jobs daily";
+            case CONTRACTS_BOARD -> secondary ? "/jobs contracts secondary" : "/jobs contracts";
+            case SKILLS_BOARD -> secondary ? "/jobs skills secondary" : "/jobs skills";
+            case STATUS_BOARD -> secondary ? "/jobs stats secondary" : "/jobs stats";
+            case LEADERBOARD_BOARD -> "/jobs top";
+            case HELP_BOARD -> secondary ? "/jobs guide secondary" : "/jobs guide";
+        };
+    }
+
+    static String routeModeLabel(NpcRole role, PlayerJobProfile profile, boolean secondary) {
+        String jobId = selectedSlotJobId(profile, secondary);
+        if (jobId == null || role == NpcRole.JOBS_MASTER) {
+            return TextUtil.tr("command.advancedjobs.route_mode.onboarding").getString();
+        }
+        return switch (role) {
+            case SALARY_BOARD -> TextUtil.tr("command.advancedjobs.route_mode.payout").getString();
+            case DAILY_BOARD, CONTRACTS_BOARD -> TextUtil.tr("command.advancedjobs.route_mode.tasks").getString();
+            case SKILLS_BOARD, STATUS_BOARD -> TextUtil.tr("command.advancedjobs.route_mode.progression").getString();
+            case HELP_BOARD, LEADERBOARD_BOARD -> TextUtil.tr("command.advancedjobs.route_mode.support").getString();
+            case JOBS_MASTER -> TextUtil.tr("command.advancedjobs.route_mode.onboarding").getString();
+        };
+    }
+
+    static String routeBlockerLabel(PlayerJobProfile profile, NpcRole role, boolean secondary, boolean deskMissingNearby) {
+        String jobId = selectedSlotJobId(profile, secondary);
+        if (jobId == null || role == NpcRole.JOBS_MASTER) {
+            return TextUtil.tr("command.advancedjobs.route_blocker.no_job").getString();
+        }
+        JobProgress progress = profile.progress(jobId);
+        if (deskMissingNearby) {
+            return TextUtil.tr("command.advancedjobs.route_blocker.missing_desk").getString();
+        }
+        if (role == NpcRole.SALARY_BOARD) {
+            long remaining = AdvancedJobsMod.get().jobManager().salaryClaimCooldownRemaining(profile);
+            if (remaining > 0L) {
+                return TextUtil.tr("command.advancedjobs.route_blocker.salary_cooldown",
+                    TimeUtil.formatRemainingSeconds(remaining)).getString();
+            }
+        }
+        if (role == NpcRole.DAILY_BOARD && progress.dailyTasks().isEmpty()) {
+            return TextUtil.tr("command.advancedjobs.route_blocker.daily_empty").getString();
+        }
+        if (role == NpcRole.CONTRACTS_BOARD && progress.contracts().isEmpty()) {
+            long remaining = AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile);
+            if (remaining > 0L) {
+                return TextUtil.tr("command.advancedjobs.route_blocker.contracts_wait",
+                    TimeUtil.formatRemainingSeconds(remaining)).getString();
+            }
+            return TextUtil.tr("command.advancedjobs.route_blocker.contracts_empty").getString();
+        }
+        if (role == NpcRole.STATUS_BOARD) {
+            if (progress.dailyTasks().isEmpty() && progress.contracts().isEmpty()) {
+                return TextUtil.tr("command.advancedjobs.route_blocker.task_pools_empty").getString();
+            }
+            if (progress.dailyTasks().isEmpty()) {
+                return TextUtil.tr("command.advancedjobs.route_blocker.daily_empty").getString();
+            }
+            if (progress.contracts().isEmpty()) {
+                long remaining = AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile);
+                if (remaining > 0L) {
+                    return TextUtil.tr("command.advancedjobs.route_blocker.contracts_wait",
+                        TimeUtil.formatRemainingSeconds(remaining)).getString();
+                }
+                return TextUtil.tr("command.advancedjobs.route_blocker.contracts_empty").getString();
+            }
+        }
+        return null;
+    }
+
+    static String routeRecoveryLabel(PlayerJobProfile profile, NpcRole role, boolean secondary,
+                                     boolean deskMissingNearby, int radius) {
+        String jobId = selectedSlotJobId(profile, secondary);
+        if (jobId == null || role == NpcRole.JOBS_MASTER) {
+            return secondary ? "/jobs choose <job> secondary" : "/jobs choose <job>";
+        }
+        if (deskMissingNearby) {
+            return TextUtil.tr("command.advancedjobs.route_recovery.missing_desk", radius).getString();
+        }
+        if (role == NpcRole.SALARY_BOARD) {
+            long remaining = AdvancedJobsMod.get().jobManager().salaryClaimCooldownRemaining(profile);
+            if (remaining > 0L) {
+                return TextUtil.tr("command.advancedjobs.route_recovery.salary_cooldown",
+                    TimeUtil.formatRemainingSeconds(remaining)).getString();
+            }
+        }
+        if (role == NpcRole.DAILY_BOARD) {
+            return TextUtil.tr("command.advancedjobs.route_recovery.daily_empty").getString();
+        }
+        if (role == NpcRole.CONTRACTS_BOARD) {
+            long remaining = AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile);
+            if (remaining > 0L) {
+                return TextUtil.tr("command.advancedjobs.route_recovery.contracts_wait",
+                    TimeUtil.formatRemainingSeconds(remaining)).getString();
+            }
+            return TextUtil.tr("command.advancedjobs.route_recovery.contracts_empty").getString();
+        }
+        if (role == NpcRole.STATUS_BOARD) {
+            JobProgress progress = profile.progress(jobId);
+            if (progress.dailyTasks().isEmpty() && progress.contracts().isEmpty()) {
+                return TextUtil.tr("command.advancedjobs.route_recovery.task_pools_empty").getString();
+            }
+            if (progress.dailyTasks().isEmpty()) {
+                return TextUtil.tr("command.advancedjobs.route_recovery.daily_empty").getString();
+            }
+            if (progress.contracts().isEmpty()) {
+                long remaining = AdvancedJobsMod.get().jobManager().contractRerollCooldownRemaining(profile);
+                if (remaining > 0L) {
+                    return TextUtil.tr("command.advancedjobs.route_recovery.contracts_wait",
+                        TimeUtil.formatRemainingSeconds(remaining)).getString();
+                }
+                return TextUtil.tr("command.advancedjobs.route_recovery.contracts_empty").getString();
+            }
+        }
+        return roleActionCommand(role, secondary);
     }
 
     private static Component latestUnlockedTitle(PlayerJobProfile profile) {

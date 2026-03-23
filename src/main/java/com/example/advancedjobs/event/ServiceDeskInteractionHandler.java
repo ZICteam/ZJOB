@@ -287,6 +287,9 @@ class ServiceDeskInteractionHandler {
         } else {
             player.sendSystemMessage(Component.translatable("message.advancedjobs.jobs_master.job_hint",
                 Component.translatable("job.advancedjobs." + targetJobId)));
+            player.sendSystemMessage(Component.translatable("message.advancedjobs.jobs_master.first_hour_focus",
+                starterFocusLabel(profile, targetJobId),
+                starterFocusCommand(profile, targetJobId, secondary)));
         }
         long remaining = Math.max(0L, ConfigManager.COMMON.jobChangeCooldownSeconds.get() - (TimeUtil.now() - profile.lastJobChangeEpochSecond()));
         player.sendSystemMessage(Component.translatable("message.advancedjobs.jobs_master.change_hint",
@@ -403,6 +406,9 @@ class ServiceDeskInteractionHandler {
         } else {
             player.sendSystemMessage(Component.translatable("message.advancedjobs.help_board.job_hint",
                 Component.translatable("job.advancedjobs." + targetJobId)));
+            player.sendSystemMessage(Component.translatable("message.advancedjobs.help_board.first_hour_focus",
+                starterFocusLabel(profile, targetJobId),
+                starterFocusCommand(profile, targetJobId, secondary)));
         }
         player.sendSystemMessage(Component.translatable("message.advancedjobs.help_board.salary_hint",
             Component.translatable(ConfigManager.COMMON.instantSalary.get() ? "gui.advancedjobs.salary_mode.instant" : "gui.advancedjobs.salary_mode.manual")));
@@ -652,6 +658,42 @@ class ServiceDeskInteractionHandler {
     private double pendingSalaryForSlot(PlayerJobProfile profile, boolean secondary) {
         String jobId = secondary ? profile.secondaryJobId() : profile.activeJobId();
         return jobId == null ? 0.0D : profile.progress(jobId).pendingSalary();
+    }
+
+    private String starterFocusLabel(PlayerJobProfile profile, String jobId) {
+        var progress = profile.progress(jobId);
+        if (progress.level() < 3) {
+            return TextUtil.tr("message.advancedjobs.first_hour.level", 3).getString();
+        }
+        if (profile.availableSkillPoints(jobId) > 0) {
+            return TextUtil.tr("message.advancedjobs.first_hour.skills", profile.availableSkillPoints(jobId)).getString();
+        }
+        long remainingDaily = progress.dailyTasks().stream().filter(task -> !task.completed()).count();
+        if (remainingDaily > 0) {
+            return TextUtil.tr("message.advancedjobs.first_hour.daily", remainingDaily).getString();
+        }
+        long remainingContracts = progress.contracts().stream().filter(contract -> !contract.completed()).count();
+        if (remainingContracts > 0) {
+            return TextUtil.tr("message.advancedjobs.first_hour.contracts", remainingContracts).getString();
+        }
+        return TextUtil.tr("message.advancedjobs.first_hour.progression").getString();
+    }
+
+    private String starterFocusCommand(PlayerJobProfile profile, String jobId, boolean secondary) {
+        var progress = profile.progress(jobId);
+        if (progress.level() < 3) {
+            return secondary ? "/jobs stats secondary" : "/jobs stats";
+        }
+        if (profile.availableSkillPoints(jobId) > 0) {
+            return secondary ? "/jobs skills secondary" : "/jobs skills";
+        }
+        if (progress.dailyTasks().stream().anyMatch(task -> !task.completed())) {
+            return secondary ? "/jobs daily secondary" : "/jobs daily";
+        }
+        if (progress.contracts().stream().anyMatch(contract -> !contract.completed())) {
+            return secondary ? "/jobs contracts secondary" : "/jobs contracts";
+        }
+        return secondary ? "/jobs guide secondary" : "/jobs guide";
     }
 
     private int nearbyBoardCount(ServerPlayer player, NpcRole role) {

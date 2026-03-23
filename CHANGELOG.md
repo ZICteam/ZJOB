@@ -1,5 +1,125 @@
 # Changelog
 
+## 1.0.76
+
+Maintenance update.
+
+Highlights:
+
+- added `/jobsadmin routecheck <player>` so admins can inspect live route mode, blocker, recovery, and next desk per slot without reproducing the player flow manually
+- reused the same route helpers as the player commands so admin diagnostics now stay aligned with `navigate` and `guide`
+- synchronized release metadata for the admin route-diagnostics roadmap step
+
+## 1.0.75
+
+Maintenance update.
+
+Highlights:
+
+- expanded route blockers and recovery hints for task-flow states so `navigate` and `guide` now distinguish empty daily loops, empty contract loops, and contract reroll/rotation wait states
+- improved progression-route diagnostics when a slot falls through to status because both task pools are currently empty
+- synchronized release metadata for the task-flow route-diagnostics roadmap step
+
+## 1.0.74
+
+Maintenance update.
+
+Highlights:
+
+- added recovery lines to `navigate` and `guide` so route diagnostics now tell players how to get unstuck after a detected blocker
+- paired blocker and recovery output for empty slots, missing nearby desks, and salary cooldown to make route commands more self-sufficient
+- synchronized release metadata for the route-recovery roadmap step
+
+## 1.0.73
+
+Maintenance update.
+
+Highlights:
+
+- added blocker lines to `navigate` and `guide` so route commands now explain when the current path is being held back by an empty slot, a missing nearby desk, or salary cooldown
+- made route guidance more actionable by separating route intent from the current obstacle in the same output
+- synchronized release metadata for the route-blocker clarity roadmap step
+
+## 1.0.72
+
+Maintenance update.
+
+Highlights:
+
+- added explicit route-mode lines to `navigate` and `guide` so players can immediately see whether the current path is about onboarding, payout, tasks, progression, or support
+- aligned route messaging more closely with the actual slot state by mapping desk choice into a clearer gameplay intent
+- synchronized release metadata for the route-mode clarity roadmap step
+
+## 1.0.71
+
+Maintenance update.
+
+Highlights:
+
+- taught `where ready` and `where summary` to explain the concrete player action behind each service board instead of only listing the desk name
+- added recommended-action lines for both the main next desk and the follow-up desk so route commands now read closer to live gameplay guidance
+- synchronized release metadata for the route-action clarity roadmap step
+
+## 1.0.70
+
+Maintenance update.
+
+Highlights:
+
+- expanded `where ready`, `where ready all`, `where missing`, and `where summary all` with slot-aware first-hour routing so hub coverage checks now point straight into the next player loop
+- added clearer follow-up guidance when actionable desks are still missing nearby and when the local hub is already fully covered
+- synchronized release metadata for the route-coverage roadmap step
+
+## 1.0.69
+
+Maintenance update.
+
+Highlights:
+
+- added first-hour route lines to `guide`, `navigate`, and `where summary` so route commands now explain the immediate beginner loop as well as the next desk
+- improved route commands for empty slots by pointing directly at profession selection as the first action
+- synchronized release metadata for the route-command onboarding roadmap step
+
+## 1.0.68
+
+Maintenance update.
+
+Highlights:
+
+- extended first-hour onboarding into `/jobs help`, `/jobs info`, Jobs Master, and Help Board guidance
+- aligned command and NPC hints with the same starter-focus route used in the GUI
+- synchronized release metadata for the commands-and-npc onboarding roadmap step
+
+## 1.0.67
+
+Maintenance update.
+
+Highlights:
+
+- added a clearer first-hour route to Jobs and Help so the opening profession loop is easier to follow before switching tabs
+- improved onboarding continuity between profession browsing, My Job, and Help with explicit starter-route messaging
+- synchronized release metadata for the Jobs-and-Help first-hour routing roadmap step
+
+## 1.0.66
+
+Maintenance update.
+
+Highlights:
+
+- added starter-focus guidance to profession browsing and My Job so first-hour goals are clearer right after choosing a profession
+- improved profession details with a visible early-game priority line for level ramp, skills, dailies, and contracts
+- synchronized release metadata for the first-hour onboarding roadmap step
+
+## 1.0.65
+
+Maintenance update.
+
+Highlights:
+
+- added compact contextual summaries to Salary, Skills, Daily, and Contracts so players can see why each tab matters right now
+- improved compact workflow screens with short slot-aware priority lines for payouts, progression, dailies, and contract pressure
+- synchronized release metadata for the contextual compact-summary roadmap step
+
 ## 1.0.64
 
 Maintenance update.
